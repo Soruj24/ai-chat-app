@@ -1,0 +1,9 @@
+mongo_data/
+server/mongo_data/
+server/dist/
+server/node_modules/
+server/.env
+*.env
+.env*
+.git/
+**/*.log
