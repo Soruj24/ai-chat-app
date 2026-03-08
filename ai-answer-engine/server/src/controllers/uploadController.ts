@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import multer from "multer";
-const pdf = require("pdf-parse");
+import pdfMod from "pdf-parse";
+const pdf: any = (pdfMod as any).default ?? (pdfMod as any);
 
 // Configure multer for memory storage
 const upload = multer({
