@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
-import pdf from "pdf-parse";
 import multer from "multer";
+const pdf = require("pdf-parse");
 
 // Configure multer for memory storage
 const upload = multer({
@@ -10,7 +10,7 @@ const upload = multer({
 
 export const uploadMiddleware = upload.single("file");
 
-export const handleFileUpload = async (req: Request, res: Response) => {
+export const handleFileUpload = async (req: Request, res: Response): Promise<void> => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;
@@ -32,14 +32,13 @@ export const handleFileUpload = async (req: Request, res: Response) => {
     ) {
       text = fileBuffer.toString("utf-8");
     } else {
-      // For images or other binaries, we can't extract text easily without OCR
-      // For now, return a message that content is not extractable
-      return res.status(400).json({ 
-        error: "File type not supported for text extraction. Please upload PDF or text files." 
+      res.status(400).json({
+        error:
+          "File type not supported for text extraction. Please upload PDF or text files.",
       });
+      return;
     }
 
-    // Clean up text (remove excessive newlines)
     text = text.replace(/\n\s*\n/g, "\n").trim();
 
     res.json({
@@ -47,10 +46,12 @@ export const handleFileUpload = async (req: Request, res: Response) => {
       filename: req.file.originalname,
       content: text,
     });
+    return;
   } catch (error: unknown) {
     console.error("File processing error:", error);
-    res
-      .status(500)
-      .json({ error: "Failed to process file: " + (error as Error).message });
+    res.status(500).json({
+      error: "Failed to process file: " + (error as Error).message,
+    });
+    return;
   }
 };
