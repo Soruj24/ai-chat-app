@@ -29,10 +29,14 @@ export default function CollectionsPage() {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   const load = async () => {
     setLoading(true);
+    if (!apiUrl) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${apiUrl}/api/collections`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -41,6 +45,8 @@ export default function CollectionsPage() {
         const data = await res.json();
         setCollections(data.collections || []);
       }
+    } catch (e) {
+      console.error("Collections: failed to fetch", e);
     } finally {
       setLoading(false);
     }
@@ -53,6 +59,10 @@ export default function CollectionsPage() {
   const create = async () => {
     if (!name.trim()) return;
     setCreating(true);
+    if (!apiUrl) {
+      setCreating(false);
+      return;
+    }
     try {
       const res = await fetch(`${apiUrl}/api/collections`, {
         method: "POST",
@@ -67,25 +77,37 @@ export default function CollectionsPage() {
         setDesc("");
         await load();
       }
+    } catch (e) {
+      console.error("Collections: failed to create", e);
     } finally {
       setCreating(false);
     }
   };
 
   const remove = async (id: string) => {
-    const res = await fetch(`${apiUrl}/api/collections/${id}`, {
-      method: "DELETE",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (res.ok) setCollections((prev) => prev.filter((c) => c._id !== id));
+    if (!apiUrl) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/collections/${id}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) setCollections((prev) => prev.filter((c) => c._id !== id));
+    } catch (e) {
+      console.error("Collections: failed to delete", e);
+    }
   };
 
   const removeItem = async (colId: string, itemId: string) => {
-    const res = await fetch(`${apiUrl}/api/collections/${colId}/items/${itemId}`, {
-      method: "DELETE",
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    if (res.ok) load();
+    if (!apiUrl) return;
+    try {
+      const res = await fetch(`${apiUrl}/api/collections/${colId}/items/${itemId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (res.ok) load();
+    } catch (e) {
+      console.error("Collections: failed to remove item", e);
+    }
   };
 
   return (
@@ -121,6 +143,10 @@ export default function CollectionsPage() {
 
       {loading ? (
         <div className="text-sm text-muted-foreground">Loading…</div>
+      ) : !apiUrl ? (
+        <div className="text-sm text-muted-foreground">
+          Backend not configured. Set NEXT_PUBLIC_API_URL to use collections.
+        </div>
       ) : collections.length === 0 ? (
         <div className="text-sm text-muted-foreground">No collections yet.</div>
       ) : (
@@ -176,4 +202,3 @@ export default function CollectionsPage() {
     </div>
   );
 }
-
