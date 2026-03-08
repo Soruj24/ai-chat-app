@@ -1,14 +1,6 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
@@ -19,8 +11,6 @@ import { ChevronDown, Mic, Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
-  selectedTone: string;
-  onToneChange: (value: string) => void;
   selectedModel: string;
   onModelChange?: (model: string) => void;
   isListening: boolean;
@@ -31,8 +21,6 @@ interface Props {
 }
 
 export function AIInputToolbarRight({
-  selectedTone,
-  onToneChange,
   selectedModel,
   onModelChange,
   isListening,
@@ -45,40 +33,6 @@ export function AIInputToolbarRight({
 
   return (
     <div className="flex items-center gap-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors hidden md:flex"
-          >
-            <span className="text-xs font-medium max-w-[80px] truncate">
-              {selectedTone}
-            </span>
-            <ChevronDown className="h-3 w-3 opacity-50" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[150px]">
-          <DropdownMenuLabel>Select Tone</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup
-            value={selectedTone}
-            onValueChange={onToneChange}
-          >
-            <DropdownMenuRadioItem value="Neutral">Neutral</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="Professional">
-              Professional
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="Creative">Creative</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="Academic">Academic</DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="Simplified">
-              Simplified
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="Concise">Concise</DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button

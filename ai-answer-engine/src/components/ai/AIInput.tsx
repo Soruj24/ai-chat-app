@@ -69,7 +69,6 @@ export function AIInput({
 }: AIInputProps) {
   const [query, setQuery] = useState("");
   const [isResearchMode, setIsResearchMode] = useState(false);
-  const [selectedTone, setSelectedTone] = useState("Neutral");
   const [focusMode, setFocusMode] = useState("web");
   const [isFocused, setIsFocused] = useState(false);
   const [isListening, setIsListening] = useState(false);
@@ -160,7 +159,7 @@ export function AIInput({
         finalQuery,
         isResearchMode,
         selectedModel,
-        selectedTone,
+        "Neutral",
         focusMode,
       );
       setQuery("");
@@ -269,8 +268,6 @@ export function AIInput({
                 onDiscover={() => (window.location.href = "/discover")}
               />
               <AIInputToolbarRight
-                selectedTone={selectedTone}
-                onToneChange={setSelectedTone}
                 selectedModel={selectedModel}
                 onModelChange={onModelChange}
                 isListening={isListening}
