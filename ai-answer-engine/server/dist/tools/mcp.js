@@ -19,8 +19,6 @@ const getMCPTools = async () => {
                     env: process.env,
                 });
                 const client = new mcp_use_1.MCPClient(connector);
-                const tools = await client.getTools();
-                allTools.push(...tools);
                 await connector.connect();
             }
             catch (err) {

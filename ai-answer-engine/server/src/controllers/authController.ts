@@ -29,9 +29,13 @@ export const register = async (req: Request, res: Response) => {
 
     await user.save();
 
-    const token = jwt.sign({ userId: user._id, email: user.email, role: user.role }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     res.status(201).json({
       token,
@@ -69,9 +73,13 @@ export const login = async (req: Request, res: Response) => {
       return;
     }
 
-    const token = jwt.sign({ userId: user._id, email: user.email, role: user.role }, JWT_SECRET, {
-      expiresIn: "7d",
-    });
+    const token = jwt.sign(
+      { userId: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      {
+        expiresIn: "7d",
+      },
+    );
 
     res.json({
       token,
@@ -90,12 +98,11 @@ export const login = async (req: Request, res: Response) => {
 
 export const getMe = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore - added by middleware
     const userId = req.user?.userId;
-    
+
     if (!userId) {
-       res.status(401).json({ error: "Unauthorized" });
-       return;
+      res.status(401).json({ error: "Unauthorized" });
+      return;
     }
 
     const user = await User.findById(userId).select("-password");
@@ -113,7 +120,6 @@ export const getMe = async (req: Request, res: Response) => {
 
 export const updateMe = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore - added by middleware
     const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ error: "Unauthorized" });

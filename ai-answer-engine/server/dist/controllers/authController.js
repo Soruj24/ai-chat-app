@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getMe = exports.login = exports.register = void 0;
+exports.updateMe = exports.getMe = exports.login = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = require("../models/User");
@@ -103,4 +103,45 @@ const getMe = async (req, res) => {
     }
 };
 exports.getMe = getMe;
+const updateMe = async (req, res) => {
+    var _a;
+    try {
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
+        if (!userId) {
+            res.status(401).json({ error: "Unauthorized" });
+            return;
+        }
+        const { name, email } = req.body;
+        const user = await User_1.User.findById(userId);
+        if (!user) {
+            res.status(404).json({ error: "User not found" });
+            return;
+        }
+        if (email && email !== user.email) {
+            const existing = await User_1.User.findOne({ email });
+            if (existing && existing._id.toString() !== userId) {
+                res.status(400).json({ error: "Email already in use" });
+                return;
+            }
+            user.email = email;
+        }
+        if (typeof name === "string") {
+            user.name = name;
+        }
+        await user.save();
+        res.json({
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+                role: user.role,
+            },
+        });
+    }
+    catch (error) {
+        console.error("UpdateMe error:", error);
+        res.status(500).json({ error: "Failed to update user" });
+    }
+};
+exports.updateMe = updateMe;
 //# sourceMappingURL=authController.js.map

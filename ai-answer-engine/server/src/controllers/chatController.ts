@@ -124,12 +124,12 @@ export const askQuestion = async (req: Request, res: Response) => {
     tone,
     focusMode,
   } = req.body;
-  
+
   const userId = req.user?.userId;
-  
+
   if (!userId) {
-     res.status(401).json({ error: "Unauthorized" });
-     return;
+    res.status(401).json({ error: "Unauthorized" });
+    return;
   }
 
   const userMessage = message || query || input;
@@ -172,7 +172,10 @@ export const askQuestion = async (req: Request, res: Response) => {
 
     try {
       // Only fetch history if it belongs to the current user
-      const chatSession = await Chat.findOne({ sessionId: currentSessionId, userId });
+      const chatSession = await Chat.findOne({
+        sessionId: currentSessionId,
+        userId,
+      });
       if (chatSession && chatSession.messages) {
         sanitizedHistory = chatSession.messages.map((m: any) => {
           if (m.role === "user" || m.role === "human") {
@@ -207,7 +210,12 @@ export const askQuestion = async (req: Request, res: Response) => {
     const stream = await agent.streamEvents(inputs, { version: "v2" });
 
     let finalAnswer = "";
-    let sources: { title: string; url: string; content: string; domain?: string }[] = [];
+    let sources: {
+      title: string;
+      url: string;
+      content: string;
+      domain?: string;
+    }[] = [];
     let images: string[] = [];
     const steps: string[] = [];
 
@@ -229,10 +237,10 @@ export const askQuestion = async (req: Request, res: Response) => {
               // Extract query from common tool input patterns
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               query =
-                (input as any).query ||
-                (input as any).input ||
-                (input as any).url ||
-                (input as any).location ||
+                (input as Record<string, string>).query ||
+                (input as Record<string, string>).input ||
+                (input as Record<string, string>).url ||
+                (input as Record<string, string>).location ||
                 "";
               if (!query && Object.keys(input).length > 0) {
                 // If query is an object (like { type: 'string' }), it's likely a schema definition or malformed input.
@@ -320,42 +328,44 @@ export const askQuestion = async (req: Request, res: Response) => {
             }
 
             if (output) {
-              let resultsToProcess: any[] = [];
-              
+              let resultsToProcess: Record<string, string>[] = [];
+
               if (Array.isArray(output)) {
                 resultsToProcess = output;
               } else if (typeof output === "object" && output !== null) {
-                 if (Array.isArray((output as any).results)) {
-                    resultsToProcess = (output as any).results;
-                 }
-                 // Check for images
-                 if (Array.isArray((output as any).images)) {
-                    const newImages = (output as any).images
-                      .filter((img: any) => typeof img === "string")
-                      .map((img: string) => img);
-                    images = [...images, ...newImages];
-                 }
+                if (Array.isArray((output as Record<string, string>).results)) {
+                  resultsToProcess = (output as any).results;
+                }
+                // Check for images
+                if (Array.isArray((output as any).images)) {
+                  const newImages = (output as any).images
+                    .filter((img: unknown) => typeof img === "string")
+                    .map((img: string) => img);
+                  images = [...images, ...newImages];
+                }
               }
 
               if (resultsToProcess.length > 0) {
-                const newSources = resultsToProcess.map((r: any) => {
-                  const url = r.url || "#";
-                  let domain = "";
-                  try {
-                    if (url && url !== "#") {
-                      domain = new URL(url).hostname;
+                const newSources = resultsToProcess.map(
+                  (r: Record<string, string>) => {
+                    const url = r.url || "#";
+                    let domain = "";
+                    try {
+                      if (url && url !== "#") {
+                        domain = new URL(url).hostname;
+                      }
+                    } catch {
+                      // ignore invalid urls
                     }
-                  } catch (e) {
-                     // ignore invalid urls
-                  }
-                  
-                  return {
-                    title: r.title || "Source",
-                    url: url,
-                    content: r.content || r.snippet || "",
-                    domain: domain,
-                  };
-                });
+
+                    return {
+                      title: r.title || "Source",
+                      url: url,
+                      content: r.content || r.snippet || "",
+                      domain: domain,
+                    };
+                  },
+                );
                 sources = [...sources, ...newSources];
               } else if (typeof output === "string") {
                 sources.push({
@@ -435,7 +445,11 @@ export const askQuestion = async (req: Request, res: Response) => {
                 { role: "assistant", content: finalAnswer },
               ],
             },
-            $setOnInsert: { sessionId: currentSessionId, title: title, userId: userId },
+            $setOnInsert: {
+              sessionId: currentSessionId,
+              title: title,
+              userId: userId,
+            },
           },
           { upsert: true, new: true },
         );

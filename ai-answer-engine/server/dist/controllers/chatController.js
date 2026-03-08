@@ -127,7 +127,10 @@ const askQuestion = async (req, res) => {
         const { agent } = await (0, agent_1.createChatAgent)(currentSessionId, isResearchMode, selectedModel, tone, focusMode);
         let sanitizedHistory = [];
         try {
-            const chatSession = await Chat_1.Chat.findOne({ sessionId: currentSessionId, userId });
+            const chatSession = await Chat_1.Chat.findOne({
+                sessionId: currentSessionId,
+                userId,
+            });
             if (chatSession && chatSession.messages) {
                 sanitizedHistory = chatSession.messages.map((m) => {
                     if (m.role === "user" || m.role === "human") {
@@ -284,7 +287,7 @@ const askQuestion = async (req, res) => {
                                             domain = new URL(url).hostname;
                                         }
                                     }
-                                    catch (e) {
+                                    catch (_a) {
                                     }
                                     return {
                                         title: r.title || "Source",
@@ -353,7 +356,11 @@ const askQuestion = async (req, res) => {
                             { role: "assistant", content: finalAnswer },
                         ],
                     },
-                    $setOnInsert: { sessionId: currentSessionId, title: title, userId: userId },
+                    $setOnInsert: {
+                        sessionId: currentSessionId,
+                        title: title,
+                        userId: userId,
+                    },
                 }, { upsert: true, new: true });
                 console.log("Saved conversation to MongoDB");
             }

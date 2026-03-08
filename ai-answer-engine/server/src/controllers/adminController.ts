@@ -3,7 +3,7 @@ import { Chat } from "../models/Chat";
 import { User } from "../models/User";
 import { Settings } from "../models/Settings";
 
-export const getStats = async (req: Request, res: Response) => {
+export const getStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const totalChats = await Chat.countDocuments();
 
@@ -30,13 +30,15 @@ export const getStats = async (req: Request, res: Response) => {
       systemStatus: "Healthy",
       version: "1.0.0",
     });
+    return;
   } catch (error) {
     console.error("Error fetching stats:", error);
     res.status(500).json({ error: "Failed to fetch stats" });
+    return;
   }
 };
 
-export const getRecentActivity = async (req: Request, res: Response) => {
+export const getRecentActivity = async (req: Request, res: Response): Promise<void> => {
   try {
     const chats = await Chat.find()
       .sort({ updatedAt: -1 })
@@ -56,13 +58,15 @@ export const getRecentActivity = async (req: Request, res: Response) => {
     }));
 
     res.json(activity);
+    return;
   } catch (error) {
     console.error("Error fetching activity:", error);
     res.status(500).json({ error: "Failed to fetch activity" });
+    return;
   }
 };
 
-export const getDailyStats = async (req: Request, res: Response) => {
+export const getDailyStats = async (req: Request, res: Response): Promise<void> => {
   try {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -83,20 +87,22 @@ export const getDailyStats = async (req: Request, res: Response) => {
     ]);
 
     res.json(dailyStats);
+    return;
   } catch (error) {
     console.error("Error fetching daily stats:", error);
     res.status(500).json({ error: "Failed to fetch daily stats" });
+    return;
   }
 };
 
-export const getAllChats = async (req: Request, res: Response) => {
+export const getAllChats = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const search = req.query.search as string;
     const skip = (page - 1) * limit;
 
-    let query: Record<string, any> = {};
+    let query: any = {};
     if (search) {
       query = {
         title: { $regex: search, $options: "i" },
@@ -129,45 +135,53 @@ export const getAllChats = async (req: Request, res: Response) => {
       page,
       pages: Math.ceil(total / limit),
     });
+    return;
   } catch (error) {
     console.error("Error fetching chats:", error);
     res.status(500).json({ error: "Failed to fetch chats" });
+    return;
   }
 };
 
-export const getChatDetails = async (req: Request, res: Response) => {
+export const getChatDetails = async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
     const chat = await Chat.findOne({ sessionId });
 
     if (!chat) {
-      return res.status(404).json({ error: "Chat not found" });
+      res.status(404).json({ error: "Chat not found" });
+      return;
     }
 
     res.json(chat);
+    return;
   } catch (error) {
     console.error("Error fetching chat details:", error);
     res.status(500).json({ error: "Failed to fetch chat details" });
+    return;
   }
 };
 
-export const deleteChat = async (req: Request, res: Response) => {
+export const deleteChat = async (req: Request, res: Response): Promise<void> => {
   try {
     const { sessionId } = req.params;
     const result = await Chat.deleteOne({ sessionId });
 
     if (result.deletedCount === 0) {
-      return res.status(404).json({ error: "Chat not found" });
+      res.status(404).json({ error: "Chat not found" });
+      return;
     }
 
     res.json({ message: "Chat deleted successfully" });
+    return;
   } catch (error) {
     console.error("Error deleting chat:", error);
     res.status(500).json({ error: "Failed to delete chat" });
+    return;
   }
 };
 
-export const getAllUsers = async (req: Request, res: Response) => {
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -198,13 +212,15 @@ export const getAllUsers = async (req: Request, res: Response) => {
       page,
       pages: Math.ceil(total / limit),
     });
+    return;
   } catch (error) {
     console.error("Error fetching users:", error);
     res.status(500).json({ error: "Failed to fetch users" });
+    return;
   }
 };
 
-export const deleteUser = async (req: Request, res: Response) => {
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
 
@@ -212,26 +228,30 @@ export const deleteUser = async (req: Request, res: Response) => {
     const userResult = await User.deleteOne({ _id: userId });
 
     if (userResult.deletedCount === 0) {
-      return res.status(404).json({ error: "User not found" });
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
     // Delete associated chats
     await Chat.deleteMany({ userId });
 
     res.json({ message: "User and associated chats deleted successfully" });
+    return;
   } catch (error) {
     console.error("Error deleting user:", error);
     res.status(500).json({ error: "Failed to delete user" });
+    return;
   }
 };
 
-export const getUserDetails = async (req: Request, res: Response) => {
+export const getUserDetails = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId).select("-password");
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      res.status(404).json({ error: "User not found" });
+      return;
     }
 
     const chats = await Chat.find({ userId })
@@ -261,26 +281,30 @@ export const getUserDetails = async (req: Request, res: Response) => {
             : "No messages",
       })),
     });
+    return;
   } catch (error) {
     console.error("Error fetching user details:", error);
     res.status(500).json({ error: "Failed to fetch user details" });
+    return;
   }
 };
 
-export const getSettings = async (req: Request, res: Response) => {
+export const getSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     let settings = await Settings.findOne();
     if (!settings) {
       settings = await Settings.create({});
     }
     res.json(settings);
+    return;
   } catch (error) {
     console.error("Error fetching settings:", error);
     res.status(500).json({ error: "Failed to fetch settings" });
+    return;
   }
 };
 
-export const updateSettings = async (req: Request, res: Response) => {
+export const updateSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     const payload = req.body || {};
     let settings = await Settings.findOne();
@@ -313,8 +337,10 @@ export const updateSettings = async (req: Request, res: Response) => {
     settings.updatedAt = new Date();
     await settings.save();
     res.json({ message: "Settings updated successfully", settings });
+    return;
   } catch (error) {
     console.error("Error updating settings:", error);
     res.status(500).json({ error: "Failed to update settings" });
+    return;
   }
 };

@@ -17,17 +17,22 @@ declare global {
   }
 }
 
-export const authenticateToken = (req: Request, res: Response, next: NextFunction) => {
+export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
   if (!token) {
-    return res.sendStatus(401);
+    res.sendStatus(401);
+    return;
   }
 
-  jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.sendStatus(403);
-    req.user = user as JwtPayload;
+  try {
+    const user = jwt.verify(token, JWT_SECRET) as JwtPayload;
+    req.user = user;
     next();
-  });
+    return;
+  } catch {
+    res.sendStatus(403);
+    return;
+  }
 };

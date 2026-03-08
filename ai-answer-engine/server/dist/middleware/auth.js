@@ -10,14 +10,19 @@ const authenticateToken = (req, res, next) => {
     const authHeader = req.headers["authorization"];
     const token = authHeader && authHeader.split(" ")[1];
     if (!token) {
-        return res.sendStatus(401);
+        res.sendStatus(401);
+        return;
     }
-    jsonwebtoken_1.default.verify(token, JWT_SECRET, (err, user) => {
-        if (err)
-            return res.sendStatus(403);
+    try {
+        const user = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         req.user = user;
         next();
-    });
+        return;
+    }
+    catch (_a) {
+        res.sendStatus(403);
+        return;
+    }
 };
 exports.authenticateToken = authenticateToken;
 //# sourceMappingURL=auth.js.map

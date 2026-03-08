@@ -24,10 +24,12 @@ const getStats = async (req, res) => {
             systemStatus: "Healthy",
             version: "1.0.0",
         });
+        return;
     }
     catch (error) {
         console.error("Error fetching stats:", error);
         res.status(500).json({ error: "Failed to fetch stats" });
+        return;
     }
 };
 exports.getStats = getStats;
@@ -48,10 +50,12 @@ const getRecentActivity = async (req, res) => {
                 : "No messages",
         }));
         res.json(activity);
+        return;
     }
     catch (error) {
         console.error("Error fetching activity:", error);
         res.status(500).json({ error: "Failed to fetch activity" });
+        return;
     }
 };
 exports.getRecentActivity = getRecentActivity;
@@ -74,10 +78,12 @@ const getDailyStats = async (req, res) => {
             { $sort: { _id: 1 } },
         ]);
         res.json(dailyStats);
+        return;
     }
     catch (error) {
         console.error("Error fetching daily stats:", error);
         res.status(500).json({ error: "Failed to fetch daily stats" });
+        return;
     }
 };
 exports.getDailyStats = getDailyStats;
@@ -113,10 +119,12 @@ const getAllChats = async (req, res) => {
             page,
             pages: Math.ceil(total / limit),
         });
+        return;
     }
     catch (error) {
         console.error("Error fetching chats:", error);
         res.status(500).json({ error: "Failed to fetch chats" });
+        return;
     }
 };
 exports.getAllChats = getAllChats;
@@ -125,13 +133,16 @@ const getChatDetails = async (req, res) => {
         const { sessionId } = req.params;
         const chat = await Chat_1.Chat.findOne({ sessionId });
         if (!chat) {
-            return res.status(404).json({ error: "Chat not found" });
+            res.status(404).json({ error: "Chat not found" });
+            return;
         }
         res.json(chat);
+        return;
     }
     catch (error) {
         console.error("Error fetching chat details:", error);
         res.status(500).json({ error: "Failed to fetch chat details" });
+        return;
     }
 };
 exports.getChatDetails = getChatDetails;
@@ -140,13 +151,16 @@ const deleteChat = async (req, res) => {
         const { sessionId } = req.params;
         const result = await Chat_1.Chat.deleteOne({ sessionId });
         if (result.deletedCount === 0) {
-            return res.status(404).json({ error: "Chat not found" });
+            res.status(404).json({ error: "Chat not found" });
+            return;
         }
         res.json({ message: "Chat deleted successfully" });
+        return;
     }
     catch (error) {
         console.error("Error deleting chat:", error);
         res.status(500).json({ error: "Failed to delete chat" });
+        return;
     }
 };
 exports.deleteChat = deleteChat;
@@ -177,10 +191,12 @@ const getAllUsers = async (req, res) => {
             page,
             pages: Math.ceil(total / limit),
         });
+        return;
     }
     catch (error) {
         console.error("Error fetching users:", error);
         res.status(500).json({ error: "Failed to fetch users" });
+        return;
     }
 };
 exports.getAllUsers = getAllUsers;
@@ -189,14 +205,17 @@ const deleteUser = async (req, res) => {
         const { userId } = req.params;
         const userResult = await User_1.User.deleteOne({ _id: userId });
         if (userResult.deletedCount === 0) {
-            return res.status(404).json({ error: "User not found" });
+            res.status(404).json({ error: "User not found" });
+            return;
         }
         await Chat_1.Chat.deleteMany({ userId });
         res.json({ message: "User and associated chats deleted successfully" });
+        return;
     }
     catch (error) {
         console.error("Error deleting user:", error);
         res.status(500).json({ error: "Failed to delete user" });
+        return;
     }
 };
 exports.deleteUser = deleteUser;
@@ -205,7 +224,8 @@ const getUserDetails = async (req, res) => {
         const { userId } = req.params;
         const user = await User_1.User.findById(userId).select("-password");
         if (!user) {
-            return res.status(404).json({ error: "User not found" });
+            res.status(404).json({ error: "User not found" });
+            return;
         }
         const chats = await Chat_1.Chat.find({ userId })
             .sort({ updatedAt: -1 })
@@ -228,10 +248,12 @@ const getUserDetails = async (req, res) => {
                     : "No messages",
             })),
         });
+        return;
     }
     catch (error) {
         console.error("Error fetching user details:", error);
         res.status(500).json({ error: "Failed to fetch user details" });
+        return;
     }
 };
 exports.getUserDetails = getUserDetails;
@@ -242,10 +264,12 @@ const getSettings = async (req, res) => {
             settings = await Settings_1.Settings.create({});
         }
         res.json(settings);
+        return;
     }
     catch (error) {
         console.error("Error fetching settings:", error);
         res.status(500).json({ error: "Failed to fetch settings" });
+        return;
     }
 };
 exports.getSettings = getSettings;
@@ -270,18 +294,22 @@ const updateSettings = async (req, res) => {
             "requireEmailVerification",
             "maintenanceMode",
         ];
+        const updates = {};
         fields.forEach((key) => {
-            if (key in payload) {
-                settings[key] = payload[key];
+            if (Object.prototype.hasOwnProperty.call(payload, key)) {
+                updates[key] = payload[key];
             }
         });
+        settings.set(updates);
         settings.updatedAt = new Date();
         await settings.save();
         res.json({ message: "Settings updated successfully", settings });
+        return;
     }
     catch (error) {
         console.error("Error updating settings:", error);
         res.status(500).json({ error: "Failed to update settings" });
+        return;
     }
 };
 exports.updateSettings = updateSettings;
