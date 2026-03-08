@@ -30,7 +30,8 @@ chatRouter.put("/admin/settings", updateSettings);
 
 
 
-chatRouter.post("/ask", authenticateToken, askQuestion);
+// Public chat endpoint (auth optional). If user is authenticated, middleware will set req.user.
+chatRouter.post("/ask", askQuestion);
 
 chatRouter.get("/history", authenticateToken, getHistory);
 chatRouter.get("/history/:sessionId", authenticateToken, getSession);

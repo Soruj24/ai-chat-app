@@ -74,12 +74,12 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
     }
     else {
         tools = [
+            (0, serper_1.getSerperTool)(),
             (0, search_1.getSearchTool)({
                 maxResults: isResearchMode ? 10 : 5,
                 searchDepth: isResearchMode ? "advanced" : "basic",
                 includeImages: true,
             }),
-            (0, serper_1.getSerperTool)(),
             (0, news_1.getNewsTool)(),
             (0, vector_1.getVectorSearchTool)(),
             new scraper_1.WebScraperTool(),
@@ -143,7 +143,7 @@ TONE INSTRUCTION: ${toneInstruction}
 FOCUS MODE: ${focusMode} (${focusInstruction})
 
 CORE INSTRUCTIONS:
-1. **Search First**: You MUST search the web using the available tools before answering any question that requires factual knowledge.
+1. **Search First (Google‑priority)**: Use 'serper_search' (Google results) as your PRIMARY web search for factual questions. Use 'tavily_search_results_json' or 'news_search' to supplement only if needed.
     - Exception: If the user is just greeting (e.g., "hi", "hello") or asking about your identity, you can answer directly without searching.
 2. **Multi-Step Reasoning**: If a query is complex, break it down and use multiple search queries to gather full context.
 3. **Citations**: You must cite your sources. Use [number] format inline (e.g., "According to recent reports[1], ...").
@@ -183,7 +183,8 @@ RESPONSE FORMAT:
   }}
   \`\`\`
 
-If the user asks about specific documents or uploaded content, USE the 'vector_search' tool.`;
+If the user asks about specific documents or uploaded content, USE the 'vector_search' tool.
+LANGUAGE: Write your answer in the same language the user used. If the user writes in Bengali, answer in Bengali.`;
     if (isResearchMode) {
         systemPrompt = `You are an expert AI Research Assistant.
 Current Date: ${currentDate}

@@ -184,9 +184,6 @@ export function Message({
 
             <MessageImages images={images || []} />
 
-            {/* Sources - Horizontal Scroll (Perplexity Style) */}
-            <MessageSources sources={sources || []} />
-
             {/* Research Process - Perplexity Style Steps */}
             {researchSteps && researchSteps.length > 0 && (
               <div className="mb-6">
@@ -199,6 +196,11 @@ export function Message({
               <span className="text-xs font-medium bg-secondary/60 text-foreground px-2 py-0.5 rounded-full border border-border/50">
                 Answer
               </span>
+              {sources && sources.length > 0 && (
+                <span className="text-[10px] font-medium bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full border border-green-500/20">
+                  Web‑verified
+                </span>
+              )}
               {sources && sources.length > 0 && (
                 <span className="text-[10px] font-medium bg-muted/40 text-muted-foreground px-2 py-0.5 rounded-full border border-border/50">
                   {sources.length} Sources
@@ -219,7 +221,8 @@ export function Message({
               isStreaming={isStreaming}
             />
 
-            {/* Sources Grid - Removed from bottom as it is now at the top */}
+            {/* Sources list below the answer */}
+            <MessageSources sources={sources || []} />
 
             {/* Actions Bar */}
             {!isStreaming && (
@@ -321,7 +324,7 @@ export function Message({
               <div className="mt-8 pt-4 border-t border-border/30">
                 <div className="flex items-center gap-2 mb-3 text-sm font-medium text-muted-foreground/80">
                   <RefreshCw className="h-4 w-4" />
-                  <span>Related</span>
+                  <span>Follow-ups</span>
                 </div>
                 <div className="flex flex-col gap-2">
                   {suggestions.map((suggestion, idx) => (

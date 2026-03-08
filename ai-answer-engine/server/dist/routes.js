@@ -25,7 +25,7 @@ exports.chatRouter.get("/admin/users/:userId", adminController_1.getUserDetails)
 exports.chatRouter.delete("/admin/users/:userId", adminController_1.deleteUser);
 exports.chatRouter.get("/admin/settings", adminController_1.getSettings);
 exports.chatRouter.put("/admin/settings", adminController_1.updateSettings);
-exports.chatRouter.post("/ask", auth_1.authenticateToken, chatController_1.askQuestion);
+exports.chatRouter.post("/ask", chatController_1.askQuestion);
 exports.chatRouter.get("/history", auth_1.authenticateToken, chatController_1.getHistory);
 exports.chatRouter.get("/history/:sessionId", auth_1.authenticateToken, chatController_1.getSession);
 exports.chatRouter.delete("/history/:sessionId", auth_1.authenticateToken, chatController_1.deleteSession);

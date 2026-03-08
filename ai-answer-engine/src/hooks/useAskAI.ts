@@ -255,7 +255,6 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
       ]);
 
       try {
-        if (!token) throw new Error("User not authenticated");
         const externalApi = process.env.NEXT_PUBLIC_API_URL;
         if (externalApi) {
           // Use external backend that streams SSE JSON
@@ -263,7 +262,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
             method: "POST",
             headers: { 
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${token}`
+              ...(token ? { "Authorization": `Bearer ${token}` } : {})
             },
             body: JSON.stringify({
               message: query,
