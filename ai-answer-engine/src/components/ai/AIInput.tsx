@@ -155,9 +155,13 @@ export function AIInput({
       if (attachment) {
         finalQuery = `Context from uploaded file (${attachment.name}):\n${attachment.content}\n\nQuestion: ${query}`;
       }
+      // Auto-enable research for complex queries
+      const words = finalQuery.trim().split(/\s+/);
+      const trigger = /\b(why|how|compare|vs\.?|trend|future|evidence|sources?|cite|research|analysis)\b/i.test(finalQuery);
+      const autoResearch = words.length >= 8 || trigger;
       onSearch(
         finalQuery,
-        isResearchMode,
+        isResearchMode || autoResearch,
         selectedModel,
         "Neutral",
         focusMode,

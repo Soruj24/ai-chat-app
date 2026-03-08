@@ -13,6 +13,64 @@ import {
   ToolMessage,
 } from "@langchain/core/messages";
 
+type SourceLike = {
+  title: string;
+  url: string;
+  content: string;
+  domain?: string;
+};
+
+function rankAndDedupSources(list: SourceLike[]): SourceLike[] {
+  const seen = new Set<string>();
+  const score = (s: SourceLike) => {
+    const url = s.url || "";
+    let host = "";
+    try {
+      host = url ? new URL(url).hostname : "";
+    } catch {
+      host = "";
+    }
+    let sc = 0;
+    if (/(\.gov|\.edu|\.ac\.)/i.test(host)) sc += 5;
+    if (/wikipedia\.org$/i.test(host)) sc += 4;
+    if (/docs|developer|support|help|api/i.test(url)) sc += 3;
+    if (/nytimes|bbc|reuters|apnews|nature|science|arxiv/i.test(url)) sc += 3;
+    if ((s.content || "").length > 140) sc += 1;
+    return sc;
+  };
+  const normKey = (s: SourceLike) =>
+    (s.url || "").replace(/\/+$/, "") + "|" + (s.title || "").toLowerCase().trim();
+  const dedup = list.filter((s) => {
+    const k = normKey(s);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  return dedup.sort((a, b) => score(b) - score(a)).slice(0, 5);
+}
+
+function curateSuggestions(sugs: string[]): string[] {
+  const uniq = Array.from(new Set<string>(sugs.map((s) => String(s).trim()))).filter(
+    (s) => s.length >= 8,
+  );
+  // Ensure diversity by preferring different starting words
+  const seenStart = new Set<string>();
+  const result: string[] = [];
+  for (const s of uniq) {
+    const start = s.split(/\s+/)[0].toLowerCase();
+    if (seenStart.has(start)) continue;
+    seenStart.add(start);
+    result.push(s);
+    if (result.length >= 3) break;
+  }
+  // If less than 3, fill from remaining
+  for (const s of uniq) {
+    if (result.length >= 3) break;
+    if (!result.includes(s)) result.push(s);
+  }
+  return result.slice(0, 3);
+}
+
 export const getHistory = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.userId;
@@ -381,8 +439,10 @@ export const askQuestion = async (req: Request, res: Response) => {
           }
         }
         steps.push(`Completed: ${event.name}`);
+        // Rank + dedup before streaming to client
+        const ranked = rankAndDedupSources(sources);
         res.write(
-          `data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources, images, tool: event.name })}\n\n`,
+          `data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images, tool: event.name })}\n\n`,
         );
       } else if (eventType === "on_chat_model_stream") {
         const content = event.data.chunk?.content;
@@ -416,9 +476,12 @@ export const askQuestion = async (req: Request, res: Response) => {
       console.error("Error generating suggestions:", e);
     }
 
-    // Send done signal immediately
+    // Rank sources before done
+    const rankedDone = rankAndDedupSources(sources);
+    // Curate suggestions
+    const curated = curateSuggestions(suggestions);
     res.write(
-      `data: ${JSON.stringify({ type: "done", sources, images, suggestions })}\n\n`,
+      `data: ${JSON.stringify({ type: "done", sources: rankedDone, images, suggestions: curated })}\n\n`,
     );
     res.end();
 

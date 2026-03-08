@@ -16,6 +16,35 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
   const [selectedModel, setSelectedModel] = useState("llama3.2");
   const { token, isLoading: authLoading } = useAuth();
 
+  const rankAndDedupSources = useCallback((sources: Source[]): Source[] => {
+    const seen = new Set<string>();
+    const score = (s: Source) => {
+      const url = s.url || "";
+      let domain = "";
+      try {
+        domain = url ? new URL(url).hostname : "";
+      } catch {
+        domain = "";
+      }
+      let sc = 0;
+      if (/(\.gov|\.edu|\.ac\.)/i.test(domain)) sc += 5;
+      if (/wikipedia\.org$/i.test(domain)) sc += 4;
+      if (/docs|developer|support|help|api/i.test(url)) sc += 3;
+      if (/nytimes|bbc|reuters|apnews|nature|science|arxiv/i.test(url)) sc += 3;
+      if ((s.content || "").length > 140) sc += 1;
+      return sc;
+    };
+    const normKey = (s: Source) =>
+      (s.url || "").replace(/\/+$/, "") + "|" + (s.title || "").toLowerCase().trim();
+    const dedup = sources.filter((s) => {
+      const k = normKey(s);
+      if (seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+    return dedup.sort((a, b) => score(b) - score(a)).slice(0, 5);
+  }, []);
+
   // Initialize session ID
   useEffect(() => {
     const newSessionId = Math.random().toString(36).substring(7);
@@ -302,17 +331,25 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
                       }
                       lastMsg.researchSteps = newSteps;
                       if (data.sources) {
-                        lastMsg.sources = data.sources;
-                        onSourcesUpdate?.(data.sources);
+                        const ranked = rankAndDedupSources(data.sources);
+                        lastMsg.sources = ranked;
+                        onSourcesUpdate?.(ranked);
                       }
                       if (data.images) lastMsg.images = data.images;
                     } else if (data.type === "done") {
                       if (data.sources) {
-                        lastMsg.sources = data.sources;
-                        onSourcesUpdate?.(data.sources);
+                        const ranked = rankAndDedupSources(data.sources);
+                        lastMsg.sources = ranked;
+                        onSourcesUpdate?.(ranked);
                       }
                       if (data.images) lastMsg.images = data.images;
-                      if (data.suggestions) lastMsg.suggestions = data.suggestions;
+                      if (data.suggestions) {
+                        const uniq = Array.from(new Set<string>(data.suggestions))
+                          .map((s) => String(s).trim())
+                          .filter((s) => s.length >= 8)
+                          .slice(0, 3);
+                        lastMsg.suggestions = uniq;
+                      }
                       setIsStreaming(false);
                       fetchHistory();
                     } else if (data.type === "error") {
