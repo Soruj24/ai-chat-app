@@ -26,10 +26,15 @@ export default function DiscoverPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
 
   useEffect(() => {
     const load = async () => {
+      // If no external API is configured, skip fetching gracefully
+      if (!apiUrl) {
+        setLoading(false);
+        return;
+      }
       try {
         const [s, a] = await Promise.all([
           fetch(`${apiUrl}/api/admin/stats`),
@@ -37,6 +42,8 @@ export default function DiscoverPage() {
         ]);
         if (s.ok) setStats(await s.json());
         if (a.ok) setActivity(await a.json());
+      } catch (e) {
+        console.error("Discover: failed to fetch admin data", e);
       } finally {
         setLoading(false);
       }
@@ -98,6 +105,10 @@ export default function DiscoverPage() {
 
         {loading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
+        ) : !apiUrl ? (
+          <div className="text-sm text-muted-foreground">
+            Backend not configured. Set NEXT_PUBLIC_API_URL to show activity.
+          </div>
         ) : activity.length === 0 ? (
           <div className="text-sm text-muted-foreground">No recent activity.</div>
         ) : (
@@ -130,4 +141,3 @@ export default function DiscoverPage() {
     </div>
   );
 }
-
