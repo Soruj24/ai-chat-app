@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { showToast } from "@/lib/swal";
 import { AIInputAttachment } from "@/components/ai/AIInputAttachment";
 import { AIInputAtMenu } from "@/components/ai/AIInputAtMenu";
-import { AIInputFocusPills } from "@/components/ai/AIInputFocusPills";
 import { AIInputToolbarLeft } from "@/components/ai/AIInputToolbarLeft";
 import { AIInputToolbarRight } from "@/components/ai/AIInputToolbarRight";
 import { AIInputResearchBanner } from "@/components/ai/AIInputResearchBanner";
@@ -228,12 +227,6 @@ export function AIInput({
               placeholder={placeholder}
               className="min-h-[60px] max-h-[200px] w-full resize-none border-0 bg-transparent px-4 py-3 focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/50 scrollbar-hide leading-relaxed"
               rows={1}
-            />
-            <AIInputFocusPills
-              focusMode={focusMode}
-              onChange={setFocusMode}
-              isResearchMode={isResearchMode}
-              onToggleResearch={() => setIsResearchMode(!isResearchMode)}
             />
             {showAtMenu && (
               <AIInputAtMenu
