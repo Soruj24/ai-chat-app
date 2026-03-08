@@ -24,7 +24,11 @@ export default function RegisterPage() {
     setError("");
 
     try {
-      const res = await fetch("http://localhost:3001/api/auth/register", {
+      const apiBase = process.env.NEXT_PUBLIC_API_URL;
+      if (!apiBase) {
+        throw new Error("Server URL not configured. Set NEXT_PUBLIC_API_URL.");
+      }
+      const res = await fetch(`${apiBase}/api/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password }),
