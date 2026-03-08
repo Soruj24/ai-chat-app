@@ -6,7 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, User, Search, Code, ShieldCheck, Folder, Activity } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, User, Search, Code, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { PortfolioModal } from "@/components/layout/PortfolioModal";
 import { SidebarNavItem } from "./SidebarNavItem";
@@ -107,7 +107,6 @@ export function Sidebar({ isOpen, toggleSidebar, isMobile = false, history = [],
       <ScrollArea className="flex-1 px-3">
         <div className="space-y-2">
             <SidebarNavItem href="/chat" icon={<Search />} label="Search" isOpen={isOpen || isMobile} active={pathname === "/chat"} />
-            <SidebarNavItem href="/discover" icon={<Activity />} label="Discover" isOpen={isOpen || isMobile} active={pathname === "/discover"} />
             <div className="my-4 border-t border-border/50" />
             <div className="text-xs font-medium text-muted-foreground px-4 mb-2">
                 {(isOpen || isMobile) && "Recent"}
