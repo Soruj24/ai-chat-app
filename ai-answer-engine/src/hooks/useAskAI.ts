@@ -30,6 +30,8 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
   const fetchHistory = async () => {
     if (!token) return;
+    // Skip if no external API is configured
+    if (!process.env.NEXT_PUBLIC_API_URL) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const response = await fetch(`${apiUrl}/api/history`, {
@@ -48,6 +50,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
   const loadSession = async (id: string) => {
     if (isStreaming || !token) return; // Prevent switching while streaming or if no token
+    if (!process.env.NEXT_PUBLIC_API_URL) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const response = await fetch(`${apiUrl}/api/history/${id}`, {
@@ -98,6 +101,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
   const deleteSession = async (id: string) => {
     if (!token) return;
+    if (!process.env.NEXT_PUBLIC_API_URL) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const response = await fetch(`${apiUrl}/api/history/${id}`, {
@@ -121,6 +125,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
   const updateSession = async (id: string, newTitle: string) => {
     if (!token) return;
+    if (!process.env.NEXT_PUBLIC_API_URL) return;
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
       const response = await fetch(`${apiUrl}/api/history/${id}`, {
@@ -222,156 +227,98 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
       try {
         if (!token) throw new Error("User not authenticated");
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-        const response = await fetch(`${apiUrl}/api/ask`, {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            message: query,
-            sessionId: sessionId,
-            isResearchMode: isResearchMode,
-            model: model,
-            tone: tone,
-            focusMode: focusMode,
-          }),
-        });
-
-        if (!response.ok) throw new Error("Failed to connect to backend");
-        if (!response.body) throw new Error("No response body");
-
-        // Process the stream
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          buffer += decoder.decode(value, { stream: true });
-
-          // Split by double newline to handle SSE format
-          const chunks = buffer.split("\n\n");
-          // Keep the last chunk in buffer as it might be incomplete
-          buffer = chunks.pop() || "";
-
-          for (const chunk of chunks) {
-            const line = chunk.trim();
-            if (line.startsWith("data: ")) {
+        const externalApi = process.env.NEXT_PUBLIC_API_URL;
+        if (externalApi) {
+          // Use external backend that streams SSE JSON
+          const response = await fetch(`${externalApi}/api/ask`, {
+            method: "POST",
+            headers: { 
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              message: query,
+              sessionId: sessionId,
+              isResearchMode: isResearchMode,
+              model: model,
+              tone: tone,
+              focusMode: focusMode,
+            }),
+          });
+          if (!response.ok) throw new Error("Failed to connect to backend");
+          if (!response.body) throw new Error("No response body");
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const chunks = buffer.split("\n\n");
+            buffer = chunks.pop() || "";
+            for (const chunk of chunks) {
+              const line = chunk.trim();
+              if (!line.startsWith("data: ")) continue;
               try {
-                const jsonStr = line.slice(6);
-                const data = JSON.parse(jsonStr);
-
+                const data = JSON.parse(line.slice(6));
                 setMessages((prev) => {
                   const newMessages = [...prev];
                   const lastMsgIndex = newMessages.length - 1;
-                  // Create a deep copy of the last message to avoid mutation issues
                   const lastMsg = { ...newMessages[lastMsgIndex] };
-
                   if (lastMsg.role === "assistant") {
                     if (data.type === "answer") {
-                      // Append new content token
                       lastMsg.content = (lastMsg.content || "") + data.content;
                     } else if (data.type === "step") {
                       const content = data.content as string;
                       const toolName = data.tool as string | undefined;
-                      const newSteps = lastMsg.researchSteps
-                        ? [...lastMsg.researchSteps]
-                        : [];
-
-                      // Remove initial placeholder if present
-                      if (newSteps.length > 0 && newSteps[0].id === "init") {
-                        newSteps.shift();
-                      }
-
+                      const newSteps = lastMsg.researchSteps ? [...lastMsg.researchSteps] : [];
+                      if (newSteps.length > 0 && newSteps[0].id === "init") newSteps.shift();
                       if (content.startsWith("Completed:")) {
-                        // Find the last in-progress step and mark it as completed
-                        // We do this in reverse to find the most recent one
                         let found = false;
-
-                        // 1. Try to find by toolName match first (most accurate)
                         if (toolName) {
                           for (let i = newSteps.length - 1; i >= 0; i--) {
-                            if (
-                              newSteps[i].status === "in_progress" &&
-                              newSteps[i].toolName === toolName
-                            ) {
-                              newSteps[i] = {
-                                ...newSteps[i],
-                                status: "completed",
-                              };
+                            if (newSteps[i].status === "in_progress" && newSteps[i].toolName === toolName) {
+                              newSteps[i] = { ...newSteps[i], status: "completed" };
                               found = true;
                               break;
                             }
                           }
                         }
-
-                        // 2. Fallback: just find the last in-progress step
                         if (!found) {
                           for (let i = newSteps.length - 1; i >= 0; i--) {
                             if (newSteps[i].status === "in_progress") {
-                              newSteps[i] = {
-                                ...newSteps[i],
-                                status: "completed",
-                              };
-                              found = true;
+                              newSteps[i] = { ...newSteps[i], status: "completed" };
                               break;
                             }
                           }
                         }
-
-                        // If no running step found, maybe it was already completed or missed
                       } else {
-                        // Treat as a new step starting
                         newSteps.push({
-                          id:
-                            Date.now().toString() +
-                            Math.random().toString().slice(2),
+                          id: Date.now().toString() + Math.random().toString().slice(2),
                           title: content,
                           status: "in_progress",
-                          toolName: toolName,
+                          toolName,
                         });
                       }
-
-                      // Update the message with new steps
                       lastMsg.researchSteps = newSteps;
-
-                      // Update sources if provided in step event (real-time updates)
                       if (data.sources) {
                         lastMsg.sources = data.sources;
-                        if (onSourcesUpdate) {
-                          onSourcesUpdate(data.sources);
-                        }
+                        onSourcesUpdate?.(data.sources);
                       }
-                      
-                      // Update images if provided
-                      if (data.images) {
-                        lastMsg.images = data.images;
-                      }
+                      if (data.images) lastMsg.images = data.images;
                     } else if (data.type === "done") {
                       if (data.sources) {
                         lastMsg.sources = data.sources;
-                        if (onSourcesUpdate) {
-                          onSourcesUpdate(data.sources);
-                        }
+                        onSourcesUpdate?.(data.sources);
                       }
-                      if (data.images) {
-                        lastMsg.images = data.images;
-                      }
-                      if (data.suggestions) {
-                        lastMsg.suggestions = data.suggestions;
-                      }
+                      if (data.images) lastMsg.images = data.images;
+                      if (data.suggestions) lastMsg.suggestions = data.suggestions;
                       setIsStreaming(false);
-                      // Refresh history after a successful chat completion
                       fetchHistory();
                     } else if (data.type === "error") {
                       lastMsg.content += `\n\n**Error**: ${data.message}`;
                       setIsStreaming(false);
                     }
-
                     newMessages[lastMsgIndex] = lastMsg;
                   }
                   return newMessages;
@@ -381,6 +328,31 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
               }
             }
           }
+        } else {
+          // Use internal Next.js route that streams plain text
+          const response = await fetch(`/api/chat`, {
+            method: "POST",
+            body: JSON.stringify({ messages: [{ role: "user", content: query }], isResearchMode }),
+          });
+          if (!response.ok || !response.body) throw new Error("Failed to connect to chat API");
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            setMessages((prev) => {
+              const newMessages = [...prev];
+              const lastMsgIndex = newMessages.length - 1;
+              const lastMsg = { ...newMessages[lastMsgIndex] };
+              if (lastMsg.role === "assistant") {
+                lastMsg.content = (lastMsg.content || "") + chunk;
+                newMessages[lastMsgIndex] = lastMsg;
+              }
+              return newMessages;
+            });
+          }
+          setIsStreaming(false);
         }
       } catch (error: unknown) {
         console.error("Chat Error:", error);
