@@ -108,7 +108,6 @@ export function Sidebar({ isOpen, toggleSidebar, isMobile = false, history = [],
         <div className="space-y-2">
             <SidebarNavItem href="/chat" icon={<Search />} label="Search" isOpen={isOpen || isMobile} active={pathname === "/chat"} />
             <SidebarNavItem href="/discover" icon={<Activity />} label="Discover" isOpen={isOpen || isMobile} active={pathname === "/discover"} />
-            <SidebarNavItem href="/collections" icon={<Folder />} label="Collections" isOpen={isOpen || isMobile} active={pathname === "/collections"} />
             <div className="my-4 border-t border-border/50" />
             <div className="text-xs font-medium text-muted-foreground px-4 mb-2">
                 {(isOpen || isMobile) && "Recent"}

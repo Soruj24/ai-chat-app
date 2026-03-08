@@ -5,21 +5,7 @@
 import React, { useState } from "react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Copy,
-  Share2,
-  Bot,
-  RefreshCw,
-  Check,
-  Volume2,
-  VolumeX,
-  Bookmark,
-  Download,
-  Plus,
-  Brain,
-  Loader2,
-  Save,
-} from "lucide-react";
+import { Copy, Share2, Bot, RefreshCw, Check, Volume2, VolumeX, Bookmark, Download, Plus, Brain } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { showToast } from "@/lib/swal";
 import { motion } from "framer-motion";
@@ -33,23 +19,6 @@ import { MessageMarkdown } from "./MessageMarkdown";
 
 import { Source } from "@/types";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { useAuth } from "@/context/AuthContext";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 
 interface MessageProps {
   id?: string;
@@ -84,14 +53,7 @@ export function Message({
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messageRef = React.useRef<HTMLDivElement>(null);
-  const { token } = useAuth();
   const [open, setOpen] = useState(false);
-  const [collections, setCollections] = useState<
-    { id: string; name: string }[]
-  >([]);
-  const [selectedCollection, setSelectedCollection] = useState<string>("");
-  const [newCollection, setNewCollection] = useState<string>("");
-  const [saving, setSaving] = useState(false);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -149,79 +111,7 @@ export function Message({
     if (onShare) onShare();
   };
 
-  const loadCollections = async () => {
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const res = await fetch(`${apiUrl}/api/collections`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) return;
-      const data = await res.json();
-      const list = (data.collections || []).map((c: any) => ({
-        id: c._id,
-        name: c.name,
-      }));
-      setCollections(list);
-      if (list[0]) setSelectedCollection(list[0].id);
-    } catch {}
-  };
-
-  const ensureCollection = async (): Promise<string | null> => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    if (selectedCollection) return selectedCollection;
-    if (!newCollection.trim()) return null;
-    const res = await fetch(`${apiUrl}/api/collections`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      body: JSON.stringify({ name: newCollection.trim() }),
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.collection?._id || null;
-  };
-
-  const handleSaveToCollection = async () => {
-    if (!token) {
-      showToast("Login required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-      const colId = await ensureCollection();
-      if (!colId) {
-        showToast("Select or create a collection");
-        setSaving(false);
-        return;
-      }
-      const res = await fetch(`${apiUrl}/api/collections/${colId}/items`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sessionId: id || "",
-          messageId: id || "",
-          role,
-          content,
-          sources: sources || [],
-        }),
-      });
-      if (res.ok) {
-        showToast("Saved to collection");
-        setOpen(false);
-      } else {
-        showToast("Failed to save");
-      }
-    } catch {
-      showToast("Failed to save");
-    }
-    setSaving(false);
-  };
+  const handleSaveToCollection = async () => {};
 
   // Preprocess content to turn [1] into markdown links [[1]](#source-1)
   const processedContent = React.useMemo(() => {
@@ -367,76 +257,7 @@ export function Message({
                     <TooltipContent>{isSpeaking ? "Stop reading" : "Read aloud"}</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
-                {!isUser && (
-                  <Dialog
-                    open={open}
-                    onOpenChange={(v) => {
-                      setOpen(v);
-                      if (v) loadCollections();
-                    }}
-                  >
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              aria-label="Save to collection"
-                            >
-                              <Bookmark className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                        </TooltipTrigger>
-                        <TooltipContent>Save to collection</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Save Answer</DialogTitle>
-                      </DialogHeader>
-                      {collections.length > 0 && (
-                        <Select
-                          value={selectedCollection}
-                          onValueChange={setSelectedCollection}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select collection" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {collections.map((c) => (
-                              <SelectItem key={c.id} value={c.id}>
-                                {c.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                      <div className="grid gap-2">
-                        <Label htmlFor="newCol">Or create new</Label>
-                        <Input
-                          id="newCol"
-                          value={newCollection}
-                          onChange={(e) => setNewCollection(e.target.value)}
-                        />
-                      </div>
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button variant="outline" onClick={() => setOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleSaveToCollection} disabled={saving}>
-                          {saving ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Save className="h-4 w-4" />
-                          )}
-                          <span className="ml-2">Save</span>
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                )}
+                
                 {onBookmark && (
                   <TooltipProvider>
                     <Tooltip>
