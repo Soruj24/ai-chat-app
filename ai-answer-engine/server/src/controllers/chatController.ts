@@ -39,7 +39,9 @@ function rankAndDedupSources(list: SourceLike[]): SourceLike[] {
     return sc;
   };
   const normKey = (s: SourceLike) =>
-    (s.url || "").replace(/\/+$/, "") + "|" + (s.title || "").toLowerCase().trim();
+    (s.url || "").replace(/\/+$/, "") +
+    "|" +
+    (s.title || "").toLowerCase().trim();
   const dedup = list.filter((s) => {
     const k = normKey(s);
     if (seen.has(k)) return false;
@@ -50,9 +52,9 @@ function rankAndDedupSources(list: SourceLike[]): SourceLike[] {
 }
 
 function curateSuggestions(sugs: string[]): string[] {
-  const uniq = Array.from(new Set<string>(sugs.map((s) => String(s).trim()))).filter(
-    (s) => s.length >= 8,
-  );
+  const uniq = Array.from(
+    new Set<string>(sugs.map((s) => String(s).trim())),
+  ).filter((s) => s.length >= 8);
   // Ensure diversity by preferring different starting words
   const seenStart = new Set<string>();
   const result: string[] = [];
