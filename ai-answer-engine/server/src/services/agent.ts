@@ -303,7 +303,11 @@ export const createDeepAgent = async (
   const mcpTools = await getMCPTools();
   const tools = [
     getSerperTool(),
-    getSearchTool({ maxResults: 10, searchDepth: "advanced", includeImages: true }),
+    getSearchTool({
+      maxResults: 10,
+      searchDepth: "advanced",
+      includeImages: true,
+    }),
     getAcademicSearchTool(),
     getNewsTool(),
     getWikipediaTool(),
@@ -353,7 +357,10 @@ RULES:
     const ToolNode: any = pre.ToolNode;
     const toolNode = new ToolNode(tools as any);
     const agentNode = async (state: any) => {
-      return await llm.invoke([{ role: "system", content: systemPrompt } as any, ...state.messages]);
+      return await llm.invoke([
+        { role: "system", content: systemPrompt } as any,
+        ...state.messages,
+      ]);
     };
     const shouldCallTools = (state: any) => {
       const last: any = state.messages[state.messages.length - 1];
@@ -361,14 +368,18 @@ RULES:
         last &&
         (Array.isArray(last.tool_calls) ||
           Array.isArray(last.toolCalls) ||
-          (last.additional_kwargs && Array.isArray(last.additional_kwargs.tool_calls)));
+          (last.additional_kwargs &&
+            Array.isArray(last.additional_kwargs.tool_calls)));
       return has ? "tools" : END;
     };
     const graph = new StateGraph(MessagesAnnotation)
       .addNode("agent", agentNode as any)
       .addNode("tools", toolNode as any)
       .addEdge(START, "agent")
-      .addConditionalEdges("agent", shouldCallTools as any, { tools: "tools", [END]: END })
+      .addConditionalEdges("agent", shouldCallTools as any, {
+        tools: "tools",
+        [END]: END,
+      })
       .addEdge("tools", "agent")
       .compile();
     return { agent: graph };

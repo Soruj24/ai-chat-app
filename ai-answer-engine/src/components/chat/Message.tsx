@@ -35,20 +35,23 @@ interface MessageProps {
   onSuggestionClick?: (suggestion: string) => void;
 }
 
-export function Message({
-  id,
-  role,
-  content,
-  sources,
-  images,
-  isStreaming,
-  researchSteps,
-  suggestions,
-  isBookmarked,
-  onBookmark,
-  onShare,
-  onSuggestionClick,
-}: MessageProps) {
+export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function Message(
+  {
+    id,
+    role,
+    content,
+    sources,
+    images,
+    isStreaming,
+    researchSteps,
+    suggestions,
+    isBookmarked,
+    onBookmark,
+    onShare,
+    onSuggestionClick,
+  }: MessageProps,
+  ref,
+) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
@@ -134,7 +137,11 @@ export function Message({
   return (
     <motion.div
       layout
-      ref={messageRef}
+      ref={(node) => {
+        messageRef.current = node;
+        if (typeof ref === "function") ref(node);
+        else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node;
+      }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -349,4 +356,4 @@ export function Message({
       </div>
     </motion.div>
   );
-}
+});
