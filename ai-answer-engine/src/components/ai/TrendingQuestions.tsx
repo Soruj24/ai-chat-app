@@ -11,21 +11,15 @@ interface TrendingQuestionsProps {
 
 type TrendItem = { text: string; icon: React.ReactElement };
 
-const FALLBACK: TrendItem[] = [
-  { text: "Explain quantum computing like I'm 5", icon: <Cpu className="h-4 w-4 text-amber-500" /> },
-  { text: "Best practices for React Server Components", icon: <Code2 className="h-4 w-4 text-sky-500" /> },
-  { text: "How to center a div in 2026", icon: <Globe className="h-4 w-4 text-pink-500" /> },
-  { text: "Write a poem about coding bugs", icon: <Sparkles className="h-4 w-4 text-indigo-500" /> }
-];
-
 export function TrendingQuestions({ onSelect }: TrendingQuestionsProps) {
-  const [items, setItems] = React.useState<TrendItem[]>(FALLBACK);
+  const [items, setItems] = React.useState<TrendItem[]>([]);
 
   React.useEffect(() => {
     let cancelled = false;
     const fetchActivity = async () => {
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+        if (!apiUrl) return;
         const res = await fetch(`${apiUrl}/api/admin/activity`);
         if (!res.ok) return;
         const data: Array<{ lastMessage?: string }> = await res.json();
@@ -70,18 +64,24 @@ export function TrendingQuestions({ onSelect }: TrendingQuestionsProps) {
         <TrendingUp className="h-3 w-3" />
         <span>Trending now</span>
       </div>
-      <div className="grid grid-cols-1 gap-3">
-        {items.map((q, i) => (
-          <PromptChip 
-            key={`${q.text}-${i}`} 
-            onClick={() => onSelect(q.text)} 
-            icon={React.cloneElement(q.icon as React.ReactElement, { className: "h-4 w-4" })}
-            className="hover:border-primary/20 transition-all duration-300"
-          >
-            {q.text}
-          </PromptChip>
-        ))}
-      </div>
+      {items.length === 0 ? (
+        <div className="text-center text-xs text-muted-foreground/70 pl-1">
+          No trending questions yet.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {items.map((q, i) => (
+            <PromptChip 
+              key={`${q.text}-${i}`} 
+              onClick={() => onSelect(q.text)} 
+              icon={React.cloneElement(q.icon as React.ReactElement, { className: "h-4 w-4" })}
+              className="hover:border-primary/20 transition-all duration-300"
+            >
+              {q.text}
+            </PromptChip>
+          ))}
+        </div>
+      )}
     </motion.div>
   );
 }

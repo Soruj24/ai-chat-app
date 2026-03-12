@@ -30,6 +30,7 @@ import {
   Brain,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Calendar } from "lucide-react";
 
 interface Props {
   isUploading: boolean;
@@ -166,11 +167,14 @@ export function AIInputToolbarLeft({
             {focusMode === "writing" && <PenTool className="h-4 w-4" />}
             {focusMode === "youtube" && <Video className="h-4 w-4" />}
             {focusMode === "reddit" && <MessageSquare className="h-4 w-4" />}
+            {focusMode === "future" && <Calendar className="h-4 w-4" />}
             <span className="text-xs font-medium hidden sm:inline-block">
               {focusMode === "web"
                 ? "Focus"
                 : focusMode === "reddit"
                 ? "Social"
+                : focusMode === "future"
+                ? "Future"
                 : focusMode.charAt(0).toUpperCase() + focusMode.slice(1)}
             </span>
             <ChevronDown className="h-3 w-3 opacity-50" />
@@ -194,6 +198,9 @@ export function AIInputToolbarLeft({
             </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="reddit">
               <MessageSquare className="h-4 w-4 mr-2" /> Social
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="future">
+              <Calendar className="h-4 w-4 mr-2" /> Future
             </DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
         </DropdownMenuContent>

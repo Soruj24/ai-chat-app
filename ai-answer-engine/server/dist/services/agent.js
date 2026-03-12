@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.generateFollowUpQuestions = exports.createChatAgent = void 0;
+exports.generateFollowUpQuestions = exports.createDeepAgent = exports.createChatAgent = void 0;
 const ollama_1 = require("@langchain/ollama");
 const groq_1 = require("@langchain/groq");
 const google_genai_1 = require("@langchain/google-genai");
@@ -18,7 +18,6 @@ const weather_1 = require("../tools/weather");
 const reddit_1 = require("../tools/reddit");
 const wikipedia_1 = require("../tools/wikipedia");
 const image_1 = require("../tools/image");
-const google_sheets_1 = require("../tools/google_sheets");
 const createChatAgent = async (sessionId, isResearchMode = false, modelName = "llama3.2", tone = "Neutral", focusMode = "web") => {
     console.log(`Initializing Chat Agent with model: ${modelName}, tone: ${tone}, focusMode: ${focusMode}`);
     let llm;
@@ -72,6 +71,21 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
     else if (focusMode === "reddit") {
         tools = [(0, reddit_1.getRedditSearchTool)(), new scraper_1.WebScraperTool(), ...commonTools];
     }
+    else if (focusMode === "future") {
+        tools = [
+            (0, serper_1.getSerperTool)(),
+            (0, search_1.getSearchTool)({
+                maxResults: 10,
+                searchDepth: "advanced",
+                includeImages: true,
+            }),
+            (0, news_1.getNewsTool)(),
+            (0, wikipedia_1.getWikipediaTool)(),
+            (0, vector_1.getVectorSearchTool)(),
+            new scraper_1.WebScraperTool(),
+            ...commonTools,
+        ];
+    }
     else {
         tools = [
             (0, serper_1.getSerperTool)(),
@@ -88,7 +102,6 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
             (0, reddit_1.getRedditSearchTool)(),
             (0, wikipedia_1.getWikipediaTool)(),
             (0, image_1.getImageGenerationTool)(),
-            (0, google_sheets_1.getGoogleSheetTool)(),
             ...commonTools,
         ];
     }
@@ -132,6 +145,10 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
     else if (focusMode === "reddit") {
         focusInstruction =
             "Focus on social discussions and community opinions. Prioritize using 'reddit_search' tool.";
+    }
+    else if (focusMode === "future") {
+        focusInstruction =
+            "Emphasize forward-looking analysis: roadmaps, timelines, risks, and scenarios. Clearly separate facts from projections and cite sources for assumptions.";
     }
     else {
         focusInstruction =
@@ -207,6 +224,21 @@ Your goal is to provide a deep, exhaustive, and academic-quality answer.
 After searching, provide a detailed report with inline citations. Do NOT list the sources at the end.
 If data visualization helps, use the 'chart' code block format described above.`;
     }
+    if (focusMode === "future") {
+        const futureAddendum = `
+OUTPUT SECTIONS:
+- Executive Summary
+- Key Drivers and Signals
+- Scenarios (Optimistic, Baseline, Risk)
+- Timeline (near-term, mid-term, long-term)
+- Risks and Mitigations
+- What to Watch (leading indicators)
+RULES:
+- Separate facts from projections and mark projections clearly.
+- Cite sources for assumptions and data with [x].
+`;
+        systemPrompt = `${systemPrompt}\n${futureAddendum}`;
+    }
     const agent = (0, langchain_1.createAgent)({
         model: llm,
         tools,
@@ -215,6 +247,116 @@ If data visualization helps, use the 'chart' code block format described above.`
     return { agent };
 };
 exports.createChatAgent = createChatAgent;
+const createDeepAgent = async (sessionId, modelName = "llama3.2", tone = "Neutral", focusMode = "deep") => {
+    let llm;
+    if (modelName.startsWith("groq/")) {
+        if (!process.env.GROQ_API_KEY) {
+            throw new Error("GROQ_API_KEY is not set in environment variables. Please add it to your .env file.");
+        }
+        const groqModel = modelName.replace("groq/", "");
+        llm = new groq_1.ChatGroq({
+            apiKey: process.env.GROQ_API_KEY,
+            model: groqModel,
+            temperature: 0,
+        });
+    }
+    else if (modelName.startsWith("gemini/")) {
+        if (!process.env.GOOGLE_API_KEY) {
+            throw new Error("GOOGLE_API_KEY is not set in environment variables. Please add it to your .env file.");
+        }
+        const geminiModel = modelName.replace("gemini/", "");
+        llm = new google_genai_1.ChatGoogleGenerativeAI({
+            apiKey: process.env.GOOGLE_API_KEY,
+            model: geminiModel,
+            temperature: 0,
+        });
+    }
+    else {
+        llm = new ollama_1.ChatOllama({
+            model: modelName,
+            temperature: 0,
+            baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+        });
+    }
+    const mcpTools = await (0, mcp_1.getMCPTools)();
+    const tools = [
+        (0, serper_1.getSerperTool)(),
+        (0, search_1.getSearchTool)({ maxResults: 10, searchDepth: "advanced", includeImages: true }),
+        (0, academic_1.getAcademicSearchTool)(),
+        (0, news_1.getNewsTool)(),
+        (0, wikipedia_1.getWikipediaTool)(),
+        (0, vector_1.getVectorSearchTool)(),
+        new scraper_1.WebScraperTool(),
+        (0, youtube_1.getYouTubeSearchTool)(),
+        (0, reddit_1.getRedditSearchTool)(),
+        (0, calculator_1.getCalculatorTool)(),
+        (0, weather_1.getWeatherTool)(),
+        (0, image_1.getImageGenerationTool)(),
+        ...mcpTools,
+    ];
+    const currentDate = new Date().toISOString().split("T")[0];
+    let systemPrompt = [
+        `You are a Deep Research Agent.`,
+        `Plan, search broadly, read sources, and synthesize a rigorous answer.`,
+        `Use multiple tool calls when needed (search, scrape, academic).`,
+        `Cite sources inline like [1], [2].`,
+        `Separate facts from speculation; include timelines and forward-looking analysis if requested.`,
+        `Date: ${currentDate}`,
+        `Tone: ${tone}`,
+    ].join("\n");
+    if (String(focusMode).toLowerCase() === "future") {
+        systemPrompt = `${systemPrompt}
+OUTPUT SECTIONS:
+- Executive Summary
+- Key Drivers and Signals
+- Scenarios (Optimistic, Baseline, Risk)
+- Timeline (near-term, mid-term, long-term)
+- Risks and Mitigations
+- What to Watch (leading indicators)
+RULES:
+- Separate facts from projections and mark projections clearly.
+- Cite sources for assumptions and data with [x].`;
+    }
+    try {
+        const dynImport = new Function("m", "return import(m)");
+        const lg = await dynImport("@langchain/langgraph");
+        const pre = await dynImport("@langchain/langgraph/prebuilt");
+        const StateGraph = lg.StateGraph;
+        const START = lg.START;
+        const END = lg.END;
+        const MessagesAnnotation = lg.MessagesAnnotation;
+        const ToolNode = pre.ToolNode;
+        const toolNode = new ToolNode(tools);
+        const agentNode = async (state) => {
+            return await llm.invoke([{ role: "system", content: systemPrompt }, ...state.messages]);
+        };
+        const shouldCallTools = (state) => {
+            const last = state.messages[state.messages.length - 1];
+            const has = last &&
+                (Array.isArray(last.tool_calls) ||
+                    Array.isArray(last.toolCalls) ||
+                    (last.additional_kwargs && Array.isArray(last.additional_kwargs.tool_calls)));
+            return has ? "tools" : END;
+        };
+        const graph = new StateGraph(MessagesAnnotation)
+            .addNode("agent", agentNode)
+            .addNode("tools", toolNode)
+            .addEdge(START, "agent")
+            .addConditionalEdges("agent", shouldCallTools, { tools: "tools", [END]: END })
+            .addEdge("tools", "agent")
+            .compile();
+        return { agent: graph };
+    }
+    catch (_a) {
+        const agent = (0, langchain_1.createAgent)({
+            model: llm,
+            tools,
+            systemPrompt,
+        });
+        return { agent };
+    }
+};
+exports.createDeepAgent = createDeepAgent;
 const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "llama3.2") => {
     let llm;
     if (modelName.startsWith("groq/")) {

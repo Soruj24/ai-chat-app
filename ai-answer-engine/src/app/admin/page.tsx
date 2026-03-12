@@ -36,10 +36,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const base = process.env.NEXT_PUBLIC_API_URL;
+        if (!base) throw new Error("API URL not configured");
         const [statsRes, activityRes, dailyRes] = await Promise.all([
-          fetch("http://localhost:3001/api/admin/stats"),
-          fetch("http://localhost:3001/api/admin/activity"),
-          fetch("http://localhost:3001/api/admin/daily-stats")
+          fetch(`${base}/api/admin/stats`),
+          fetch(`${base}/api/admin/activity`),
+          fetch(`${base}/api/admin/daily-stats`)
         ]);
 
         if (!statsRes.ok || !activityRes.ok || !dailyRes.ok) {

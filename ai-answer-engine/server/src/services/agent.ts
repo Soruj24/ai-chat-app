@@ -15,7 +15,6 @@ import { getWeatherTool } from "../tools/weather";
 import { getRedditSearchTool } from "../tools/reddit";
 import { getWikipediaTool } from "../tools/wikipedia";
 import { getImageGenerationTool } from "../tools/image";
-import { getGoogleSheetTool } from "../tools/google_sheets";
 
 export const createChatAgent = async (
   sessionId: string,
@@ -82,6 +81,20 @@ export const createChatAgent = async (
     tools = [getYouTubeSearchTool(), new WebScraperTool(), ...commonTools];
   } else if (focusMode === "reddit") {
     tools = [getRedditSearchTool(), new WebScraperTool(), ...commonTools];
+  } else if (focusMode === "future") {
+    tools = [
+      getSerperTool(),
+      getSearchTool({
+        maxResults: 10,
+        searchDepth: "advanced",
+        includeImages: true,
+      }),
+      getNewsTool(),
+      getWikipediaTool(),
+      getVectorSearchTool(),
+      new WebScraperTool(),
+      ...commonTools,
+    ];
   } else {
     // Default "web" mode - include everything
     tools = [
@@ -100,7 +113,6 @@ export const createChatAgent = async (
       getRedditSearchTool(),
       getWikipediaTool(),
       getImageGenerationTool(),
-      getGoogleSheetTool(),
       ...commonTools,
     ];
   }
@@ -144,6 +156,9 @@ export const createChatAgent = async (
   } else if (focusMode === "reddit") {
     focusInstruction =
       "Focus on social discussions and community opinions. Prioritize using 'reddit_search' tool.";
+  } else if (focusMode === "future") {
+    focusInstruction =
+      "Emphasize forward-looking analysis: roadmaps, timelines, risks, and scenarios. Clearly separate facts from projections and cite sources for assumptions.";
   } else {
     focusInstruction =
       "Use a balanced approach, searching the web for comprehensive information.";
@@ -221,6 +236,22 @@ After searching, provide a detailed report with inline citations. Do NOT list th
 If data visualization helps, use the 'chart' code block format described above.`;
   }
 
+  if (focusMode === "future") {
+    const futureAddendum = `
+OUTPUT SECTIONS:
+- Executive Summary
+- Key Drivers and Signals
+- Scenarios (Optimistic, Baseline, Risk)
+- Timeline (near-term, mid-term, long-term)
+- Risks and Mitigations
+- What to Watch (leading indicators)
+RULES:
+- Separate facts from projections and mark projections clearly.
+- Cite sources for assumptions and data with [x].
+`;
+    systemPrompt = `${systemPrompt}\n${futureAddendum}`;
+  }
+
   const agent = createAgent({
     model: llm,
     tools,
@@ -228,6 +259,127 @@ If data visualization helps, use the 'chart' code block format described above.`
   });
 
   return { agent };
+};
+
+export const createDeepAgent = async (
+  sessionId: string,
+  modelName: string = "llama3.2",
+  tone: string = "Neutral",
+  focusMode: string = "deep",
+) => {
+  let llm;
+  if (modelName.startsWith("groq/")) {
+    if (!process.env.GROQ_API_KEY) {
+      throw new Error(
+        "GROQ_API_KEY is not set in environment variables. Please add it to your .env file.",
+      );
+    }
+    const groqModel = modelName.replace("groq/", "");
+    llm = new ChatGroq({
+      apiKey: process.env.GROQ_API_KEY,
+      model: groqModel,
+      temperature: 0,
+    });
+  } else if (modelName.startsWith("gemini/")) {
+    if (!process.env.GOOGLE_API_KEY) {
+      throw new Error(
+        "GOOGLE_API_KEY is not set in environment variables. Please add it to your .env file.",
+      );
+    }
+    const geminiModel = modelName.replace("gemini/", "");
+    llm = new ChatGoogleGenerativeAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+      model: geminiModel,
+      temperature: 0,
+    });
+  } else {
+    llm = new ChatOllama({
+      model: modelName,
+      temperature: 0,
+      baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
+    });
+  }
+
+  const mcpTools = await getMCPTools();
+  const tools = [
+    getSerperTool(),
+    getSearchTool({ maxResults: 10, searchDepth: "advanced", includeImages: true }),
+    getAcademicSearchTool(),
+    getNewsTool(),
+    getWikipediaTool(),
+    getVectorSearchTool(),
+    new WebScraperTool(),
+    getYouTubeSearchTool(),
+    getRedditSearchTool(),
+    getCalculatorTool(),
+    getWeatherTool(),
+    getImageGenerationTool(),
+    ...mcpTools,
+  ];
+
+  const currentDate = new Date().toISOString().split("T")[0];
+  let systemPrompt = [
+    `You are a Deep Research Agent.`,
+    `Plan, search broadly, read sources, and synthesize a rigorous answer.`,
+    `Use multiple tool calls when needed (search, scrape, academic).`,
+    `Cite sources inline like [1], [2].`,
+    `Separate facts from speculation; include timelines and forward-looking analysis if requested.`,
+    `Date: ${currentDate}`,
+    `Tone: ${tone}`,
+  ].join("\n");
+
+  if (String(focusMode).toLowerCase() === "future") {
+    systemPrompt = `${systemPrompt}
+OUTPUT SECTIONS:
+- Executive Summary
+- Key Drivers and Signals
+- Scenarios (Optimistic, Baseline, Risk)
+- Timeline (near-term, mid-term, long-term)
+- Risks and Mitigations
+- What to Watch (leading indicators)
+RULES:
+- Separate facts from projections and mark projections clearly.
+- Cite sources for assumptions and data with [x].`;
+  }
+
+  try {
+    const dynImport: any = new Function("m", "return import(m)");
+    const lg = await dynImport("@langchain/langgraph");
+    const pre = await dynImport("@langchain/langgraph/prebuilt");
+    const StateGraph: any = lg.StateGraph;
+    const START: any = lg.START;
+    const END: any = lg.END;
+    const MessagesAnnotation: any = lg.MessagesAnnotation;
+    const ToolNode: any = pre.ToolNode;
+    const toolNode = new ToolNode(tools as any);
+    const agentNode = async (state: any) => {
+      return await llm.invoke([{ role: "system", content: systemPrompt } as any, ...state.messages]);
+    };
+    const shouldCallTools = (state: any) => {
+      const last: any = state.messages[state.messages.length - 1];
+      const has =
+        last &&
+        (Array.isArray(last.tool_calls) ||
+          Array.isArray(last.toolCalls) ||
+          (last.additional_kwargs && Array.isArray(last.additional_kwargs.tool_calls)));
+      return has ? "tools" : END;
+    };
+    const graph = new StateGraph(MessagesAnnotation)
+      .addNode("agent", agentNode as any)
+      .addNode("tools", toolNode as any)
+      .addEdge(START, "agent")
+      .addConditionalEdges("agent", shouldCallTools as any, { tools: "tools", [END]: END })
+      .addEdge("tools", "agent")
+      .compile();
+    return { agent: graph };
+  } catch {
+    const agent = createAgent({
+      model: llm,
+      tools,
+      systemPrompt,
+    });
+    return { agent };
+  }
 };
 
 export const generateFollowUpQuestions = async (

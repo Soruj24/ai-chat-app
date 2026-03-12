@@ -9,7 +9,7 @@ const sourceSchema = new mongoose_1.default.Schema({
     title: { type: String, required: true },
     url: { type: String, required: true },
     content: { type: String },
-    snippet: { type: String }
+    snippet: { type: String },
 }, { _id: false });
 const conversationSchema = new mongoose_1.default.Schema({
     userId: { type: String, required: true, index: true },
@@ -17,7 +17,7 @@ const conversationSchema = new mongoose_1.default.Schema({
     query: { type: String, required: true },
     answer: { type: String, required: true },
     sources: [sourceSchema],
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
 });
 conversationSchema.index({ userId: 1, createdAt: -1 });
 conversationSchema.index({ sessionId: 1, createdAt: -1 });

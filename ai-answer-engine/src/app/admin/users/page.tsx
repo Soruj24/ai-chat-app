@@ -49,7 +49,9 @@ export default function AdminUsersPage() {
     setIsLoading(true);
     setError("");
     try {
-      const url = new URL("http://localhost:3001/api/admin/users");
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API URL not configured");
+      const url = new URL("/api/admin/users", base);
       url.searchParams.append("page", pageNum.toString());
       url.searchParams.append("limit", "10");
       if (search) url.searchParams.append("search", search);
@@ -81,7 +83,9 @@ export default function AdminUsersPage() {
 
     setDeleteLoading(userId);
     try {
-      const res = await fetch(`http://localhost:3001/api/admin/users/${userId}`, {
+      const base = process.env.NEXT_PUBLIC_API_URL;
+      if (!base) throw new Error("API URL not configured");
+      const res = await fetch(`${base}/api/admin/users/${userId}`, {
         method: "DELETE",
       });
       

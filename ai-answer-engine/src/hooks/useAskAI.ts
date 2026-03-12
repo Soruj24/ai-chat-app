@@ -256,139 +256,115 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
 
       try {
         const externalApi = process.env.NEXT_PUBLIC_API_URL;
-        if (externalApi) {
-          // Use external backend that streams SSE JSON
-          const response = await fetch(`${externalApi}/api/ask`, {
-            method: "POST",
-            headers: { 
-              "Content-Type": "application/json",
-              ...(token ? { "Authorization": `Bearer ${token}` } : {})
-            },
-            body: JSON.stringify({
-              message: query,
-              sessionId: sessionId,
-              isResearchMode: isResearchMode,
-              model: model,
-              tone: tone,
-              focusMode: focusMode,
-            }),
-          });
-          if (!response.ok) throw new Error("Failed to connect to backend");
-          if (!response.body) throw new Error("No response body");
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = "";
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const chunks = buffer.split("\n\n");
-            buffer = chunks.pop() || "";
-            for (const chunk of chunks) {
-              const line = chunk.trim();
-              if (!line.startsWith("data: ")) continue;
-              try {
-                const data = JSON.parse(line.slice(6));
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  const lastMsgIndex = newMessages.length - 1;
-                  const lastMsg = { ...newMessages[lastMsgIndex] };
-                  if (lastMsg.role === "assistant") {
-                    if (data.type === "answer") {
-                      lastMsg.content = (lastMsg.content || "") + data.content;
-                    } else if (data.type === "step") {
-                      const content = data.content as string;
-                      const toolName = data.tool as string | undefined;
-                      const newSteps = lastMsg.researchSteps ? [...lastMsg.researchSteps] : [];
-                      if (newSteps.length > 0 && newSteps[0].id === "init") newSteps.shift();
-                      if (content.startsWith("Completed:")) {
-                        let found = false;
-                        if (toolName) {
-                          for (let i = newSteps.length - 1; i >= 0; i--) {
-                            if (newSteps[i].status === "in_progress" && newSteps[i].toolName === toolName) {
-                              newSteps[i] = { ...newSteps[i], status: "completed" };
-                              found = true;
-                              break;
-                            }
+        if (!externalApi) {
+          throw new Error("Backend API not configured. Set NEXT_PUBLIC_API_URL");
+        }
+        // Use external backend that streams SSE JSON
+        const response = await fetch(`${externalApi}/api/ask`, {
+          method: "POST",
+          headers: { 
+            "Content-Type": "application/json",
+            ...(token ? { "Authorization": `Bearer ${token}` } : {})
+          },
+          body: JSON.stringify({
+            message: query,
+            sessionId: sessionId,
+            isResearchMode: isResearchMode,
+            model: model,
+            tone: tone,
+            focusMode: focusMode,
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to connect to backend");
+        if (!response.body) throw new Error("No response body");
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const chunks = buffer.split("\n\n");
+          buffer = chunks.pop() || "";
+          for (const chunk of chunks) {
+            const line = chunk.trim();
+            if (!line.startsWith("data: ")) continue;
+            try {
+              const data = JSON.parse(line.slice(6));
+              setMessages((prev) => {
+                const newMessages = [...prev];
+                const lastMsgIndex = newMessages.length - 1;
+                const lastMsg = { ...newMessages[lastMsgIndex] };
+                if (lastMsg.role === "assistant") {
+                  if (data.type === "answer") {
+                    lastMsg.content = (lastMsg.content || "") + data.content;
+                  } else if (data.type === "step") {
+                    const content = data.content as string;
+                    const toolName = data.tool as string | undefined;
+                    const newSteps = lastMsg.researchSteps ? [...lastMsg.researchSteps] : [];
+                    if (newSteps.length > 0 && newSteps[0].id === "init") newSteps.shift();
+                    if (content.startsWith("Completed:")) {
+                      let found = false;
+                      if (toolName) {
+                        for (let i = newSteps.length - 1; i >= 0; i--) {
+                          if (newSteps[i].status === "in_progress" && newSteps[i].toolName === toolName) {
+                            newSteps[i] = { ...newSteps[i], status: "completed" };
+                            found = true;
+                            break;
                           }
                         }
-                        if (!found) {
-                          for (let i = newSteps.length - 1; i >= 0; i--) {
-                            if (newSteps[i].status === "in_progress") {
-                              newSteps[i] = { ...newSteps[i], status: "completed" };
-                              break;
-                            }
+                      }
+                      if (!found) {
+                        for (let i = newSteps.length - 1; i >= 0; i--) {
+                          if (newSteps[i].status === "in_progress") {
+                            newSteps[i] = { ...newSteps[i], status: "completed" };
+                            break;
                           }
                         }
-                      } else {
-                        newSteps.push({
-                          id: Date.now().toString() + Math.random().toString().slice(2),
-                          title: content,
-                          status: "in_progress",
-                          toolName,
-                        });
                       }
-                      lastMsg.researchSteps = newSteps;
-                      if (data.sources) {
-                        const ranked = rankAndDedupSources(data.sources);
-                        lastMsg.sources = ranked;
-                        onSourcesUpdate?.(ranked);
-                      }
-                      if (data.images) lastMsg.images = data.images;
-                    } else if (data.type === "done") {
-                      if (data.sources) {
-                        const ranked = rankAndDedupSources(data.sources);
-                        lastMsg.sources = ranked;
-                        onSourcesUpdate?.(ranked);
-                      }
-                      if (data.images) lastMsg.images = data.images;
-                      if (data.suggestions) {
-                        const uniq = Array.from(new Set<string>(data.suggestions))
-                          .map((s) => String(s).trim())
-                          .filter((s) => s.length >= 8)
-                          .slice(0, 3);
-                        lastMsg.suggestions = uniq;
-                      }
-                      setIsStreaming(false);
-                      fetchHistory();
-                    } else if (data.type === "error") {
-                      lastMsg.content += `\n\n**Error**: ${data.message}`;
-                      setIsStreaming(false);
+                    } else {
+                      newSteps.push({
+                        id: Date.now().toString() + Math.random().toString().slice(2),
+                        title: content,
+                        status: "in_progress",
+                        toolName,
+                      });
                     }
-                    newMessages[lastMsgIndex] = lastMsg;
+                    lastMsg.researchSteps = newSteps;
+                    if (data.sources) {
+                      const ranked = rankAndDedupSources(data.sources);
+                      lastMsg.sources = ranked;
+                      onSourcesUpdate?.(ranked);
+                    }
+                    if (data.images) lastMsg.images = data.images;
+                  } else if (data.type === "done") {
+                    if (data.sources) {
+                      const ranked = rankAndDedupSources(data.sources);
+                      lastMsg.sources = ranked;
+                      onSourcesUpdate?.(ranked);
+                    }
+                    if (data.images) lastMsg.images = data.images;
+                    if (data.suggestions) {
+                      const uniq = Array.from(new Set<string>(data.suggestions))
+                        .map((s) => String(s).trim())
+                        .filter((s) => s.length >= 8)
+                        .slice(0, 3);
+                      lastMsg.suggestions = uniq;
+                    }
+                    setIsStreaming(false);
+                    fetchHistory();
+                  } else if (data.type === "error") {
+                    lastMsg.content += `\n\n**Error**: ${data.message}`;
+                    setIsStreaming(false);
                   }
-                  return newMessages;
-                });
-              } catch (e) {
-                console.error("Error parsing SSE data:", e);
-              }
+                  newMessages[lastMsgIndex] = lastMsg;
+                }
+                return newMessages;
+              });
+            } catch (e) {
+              console.error("Error parsing SSE data:", e);
             }
           }
-        } else {
-          // Use internal Next.js route that streams plain text
-          const response = await fetch(`/api/chat`, {
-            method: "POST",
-            body: JSON.stringify({ messages: [{ role: "user", content: query }], isResearchMode }),
-          });
-          if (!response.ok || !response.body) throw new Error("Failed to connect to chat API");
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            const chunk = decoder.decode(value, { stream: true });
-            setMessages((prev) => {
-              const newMessages = [...prev];
-              const lastMsgIndex = newMessages.length - 1;
-              const lastMsg = { ...newMessages[lastMsgIndex] };
-              if (lastMsg.role === "assistant") {
-                lastMsg.content = (lastMsg.content || "") + chunk;
-                newMessages[lastMsgIndex] = lastMsg;
-              }
-              return newMessages;
-            });
-          }
-          setIsStreaming(false);
         }
       } catch (error: unknown) {
         console.error("Chat Error:", error);

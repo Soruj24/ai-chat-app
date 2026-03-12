@@ -6,11 +6,13 @@ const listCollections = async (req, res) => {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
-        const collections = await Collection_1.Collection.find({ userId }).sort({ updatedAt: -1 });
+        const collections = await Collection_1.Collection.find({ userId }).sort({
+            updatedAt: -1,
+        });
         res.json({ collections });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to fetch collections" });
         return;
     }
@@ -30,7 +32,7 @@ const createCollection = async (req, res) => {
         res.status(201).json({ collection: c });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to create collection" });
         return;
     }
@@ -49,7 +51,7 @@ const getCollection = async (req, res) => {
         res.json({ collection: c });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to fetch collection" });
         return;
     }
@@ -68,7 +70,7 @@ const deleteCollection = async (req, res) => {
         res.json({ ok: true });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to delete collection" });
         return;
     }
@@ -89,13 +91,19 @@ const addItem = async (req, res) => {
             res.status(404).json({ error: "Not found" });
             return;
         }
-        c.items.push({ sessionId, messageId, role, content, sources: sources || [] });
+        c.items.push({
+            sessionId,
+            messageId,
+            role,
+            content,
+            sources: sources || [],
+        });
         c.updatedAt = new Date();
         await c.save();
         res.status(201).json({ collection: c });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to add item" });
         return;
     }
@@ -123,7 +131,7 @@ const removeItem = async (req, res) => {
         res.json({ collection: c });
         return;
     }
-    catch (e) {
+    catch (_b) {
         res.status(500).json({ error: "Failed to remove item" });
         return;
     }

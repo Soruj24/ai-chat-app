@@ -33,7 +33,9 @@ function rankAndDedupSources(list) {
             sc += 1;
         return sc;
     };
-    const normKey = (s) => (s.url || "").replace(/\/+$/, "") + "|" + (s.title || "").toLowerCase().trim();
+    const normKey = (s) => (s.url || "").replace(/\/+$/, "") +
+        "|" +
+        (s.title || "").toLowerCase().trim();
     const dedup = list.filter((s) => {
         const k = normKey(s);
         if (seen.has(k))
@@ -169,32 +171,18 @@ const askQuestion = async (req, res) => {
         res.status(400).json({ error: "Message, query or input is required" });
         return;
     }
-    const normalizedMsg = String(userMessage).trim();
-    const bnTrigger = "বাংলাদেশের বর্তমান প্রধানমন্ত্রীর নাম কি";
-    if (normalizedMsg.includes(bnTrigger)) {
-        res.setHeader("Content-Type", "text/event-stream");
-        res.setHeader("Cache-Control", "no-cache");
-        res.setHeader("Connection", "keep-alive");
-        const content = "বাংলাদেশের বর্তমান প্রধানমন্ত্রীর নাম কি\nতারেক রহমান।\n\nবর্তমান অবস্থা\nবাংলাদেশের বর্তমান প্রধানমন্ত্রী তারেক রহমান, যিনি বিএনপির চেয়ারম্যান। তিনি ২০২৬ সালের ১৭ ফেব্রুয়ারি শপথ গ্রহণ করেন বাংলাদেশের ১১তম প্রধানমন্ত্রী হিসেবে।\n\nপটভূমি\nশেখ হাসিনার সরকার ২০২৪ সালে ছাত্র আন্দোলনের মাধ্যমে উৎখাত হওয়ার পর অন্তর্বর্তীকালীন সরকার চলে এবং ২০২৬ সালের নির্বাচনে বিএনপি জয়লাভ করে। তারেক রহমান ১৭ বছরের নির্বাসন থেকে ফিরে এসে নির্বাচনে জয়ী হন।\n\nFollow-ups\n\n- তারেক রহমানের রাজনৈতিক জীবনকাল কী\n- কোন তারিখে তারেক রহমান শপথ নেন\n- তারেক রহমানের সরকারে মন্ত্রী কারা\n- শেখ হাসিনার পতন কীভাবে ঘটল\n- তারেক রহমানের পরিবার সম্পর্কে বলুন";
-        res.write(`data: ${JSON.stringify({ type: "answer", content })}\n\n`);
-        const suggestions = [
-            "তারেক রহমানের রাজনৈতিক জীবনকাল কী",
-            "কোন তারিখে তারেক রহমান শপথ নেন",
-            "তারেক রহমানের সরকারে মন্ত্রী কারা",
-            "শেখ হাসিনার পতন কীভাবে ঘটল",
-            "তারেক রহমানের পরিবার সম্পর্কে বলুন",
-        ];
-        res.write(`data: ${JSON.stringify({ type: "done", sources: [], images: [], suggestions })}\n\n`);
-        res.end();
-        return;
-    }
     const title = userMessage.substring(0, 50) + (userMessage.length > 50 ? "..." : "");
     const currentSessionId = sessionId || `session_${Date.now()}`;
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
     res.setHeader("Connection", "keep-alive");
     try {
-        const { agent } = await (0, agent_1.createChatAgent)(currentSessionId, isResearchMode, selectedModel, tone, focusMode);
+        const useDeep = String(focusMode || "").toLowerCase() === "deep" ||
+            String(focusMode || "").toLowerCase() === "research" ||
+            Boolean(isResearchMode);
+        const { agent } = useDeep
+            ? await (0, agent_1.createDeepAgent)(currentSessionId, selectedModel, tone, String(focusMode || "deep"))
+            : await (0, agent_1.createChatAgent)(currentSessionId, isResearchMode, selectedModel, tone, focusMode);
         let sanitizedHistory = [];
         if (userId) {
             try {
