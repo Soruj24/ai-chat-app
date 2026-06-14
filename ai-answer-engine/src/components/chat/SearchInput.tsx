@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowRight, Paperclip, Mic, Brain, MicOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 interface SearchInputProps {
   onSearch: (query: string, isResearchMode: boolean, images?: string[]) => void;
@@ -16,120 +18,29 @@ interface SearchInputProps {
 export function SearchInput({ onSearch, className, placeholder = "Ask anything...", centered = false }: SearchInputProps) {
   const [query, setQuery] = useState("");
   const [isResearchMode, setIsResearchMode] = useState(false);
-  const [isListening, setIsListening] = useState(false);
-  const [attachedImages, setAttachedImages] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  type SpeechRecognitionConstructor = new () => {
-    continuous: boolean;
-    interimResults: boolean;
-    lang: string;
-    onstart: () => void;
-    onend: () => void;
-    onresult: (event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void;
-    start: () => void;
-    stop: () => void;
-  };
-  type SpeechRecognitionInstance = InstanceType<SpeechRecognitionConstructor>;
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
+  const { attachedImages, isUploading, fileInputRef, handleImageUpload, removeImage } = useImageUpload();
+  const { isListening, toggleListening } = useSpeechRecognition((transcript) => {
+    setQuery((prev) => prev + (prev ? " " : "") + transcript);
+  });
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     if (query.trim() || attachedImages.length > 0) {
       onSearch(query, isResearchMode, attachedImages);
       setQuery("");
-      setAttachedImages([]);
-      if (textareaRef.current) {
-        textareaRef.current.style.height = 'auto';
-      }
+      if (textareaRef.current) textareaRef.current.style.height = "auto";
     }
-  };
-
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setIsUploading(true);
-    const newImages: string[] = [];
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i];
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        const promise = new Promise<void>((resolve) => {
-          reader.onload = (event) => {
-            if (event.target?.result) {
-              newImages.push(event.target.result as string);
-              resolve();
-            }
-          };
-        });
-        reader.readAsDataURL(file);
-        await promise;
-      }
-    }
-
-    setAttachedImages((prev) => [...prev, ...newImages]);
-    setIsUploading(false);
-    
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const removeImage = (index: number) => {
-    setAttachedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  const toggleListening = () => {
-    if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-        alert("Speech recognition is not supported in this browser.");
-        return;
-    }
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-    } else {
-      const ctor = (window as unknown as {
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-        SpeechRecognition?: SpeechRecognitionConstructor;
-      }).webkitSpeechRecognition || (window as unknown as {
-        webkitSpeechRecognition?: SpeechRecognitionConstructor;
-        SpeechRecognition?: SpeechRecognitionConstructor;
-      }).SpeechRecognition;
-      if (!ctor) {
-        alert("Speech recognition is not supported in this browser.");
-        return;
-      }
-      recognitionRef.current = new ctor();
-      recognitionRef.current.continuous = false;
-      recognitionRef.current.interimResults = false;
-      recognitionRef.current.lang = 'en-US';
-
-      recognitionRef.current.onstart = () => setIsListening(true);
-      recognitionRef.current.onend = () => setIsListening(false);
-      recognitionRef.current.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setQuery((prev) => prev + (prev ? " " : "") + transcript);
-      };
-
-      recognitionRef.current.start();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
   };
 
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = textareaRef.current.scrollHeight + 'px';
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = textareaRef.current.scrollHeight + "px";
     }
   }, [query]);
 
@@ -139,98 +50,28 @@ export function SearchInput({ onSearch, className, placeholder = "Ask anything..
         <div className="flex flex-wrap gap-2 mb-3 px-1">
           {attachedImages.map((img, idx) => (
             <div key={idx} className="relative group">
-              <img
-                src={img}
-                alt={`Attachment ${idx + 1}`}
-                className="h-16 w-16 object-cover rounded-lg border border-border"
-              />
-              <button
-                type="button"
-                onClick={() => removeImage(idx)}
-                className="absolute -top-2 -right-2 h-5 w-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-              >
-                ×
-              </button>
+              <img src={img} alt={`Attachment ${idx + 1}`} className="h-16 w-16 object-cover rounded-lg border border-border" />
+              <button type="button" onClick={() => removeImage(idx)} className="absolute -top-2 -right-2 h-5 w-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>
             </div>
           ))}
         </div>
       )}
-      <div className={cn(
-        "relative flex items-end w-full p-3 rounded-2xl border border-input/50 bg-background/50 backdrop-blur-xl shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all duration-300",
-        centered ? "shadow-lg border-primary/20 bg-background/80" : "shadow-md"
-      )}>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleImageUpload}
-          className="hidden"
-          id="image-upload"
-        />
-        <Button 
-          variant="ghost" 
-          size="icon" 
-          className={cn(
-            "h-8 w-8 mb-1 mr-2 transition-colors",
-            attachedImages.length > 0 ? "text-primary" : "text-muted-foreground hover:text-primary"
-          )}
-          onClick={() => fileInputRef.current?.click()}
-          disabled={isUploading}
-        >
-          {isUploading ? (
-            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Paperclip className="h-5 w-5" />
-          )}
+      <div className={cn("relative flex items-end w-full p-3 rounded-2xl border border-input/50 bg-background/50 backdrop-blur-xl shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all duration-300", centered ? "shadow-lg border-primary/20 bg-background/80" : "shadow-md")}>
+        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handleImageUpload} className="hidden" id="image-upload" />
+        <Button variant="ghost" size="icon" className={cn("h-8 w-8 mb-1 mr-2 transition-colors", attachedImages.length > 0 ? "text-primary" : "text-muted-foreground hover:text-primary")} onClick={() => fileInputRef.current?.click()} disabled={isUploading}>
+          {isUploading ? <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" /> : <Paperclip className="h-5 w-5" />}
         </Button>
-        <Textarea
-          ref={textareaRef}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder={isListening ? "Listening..." : placeholder}
-          className="min-h-[24px] max-h-[200px] w-full resize-none border-0 bg-transparent p-1 px-2 focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/50 scrollbar-hide"
-          rows={1}
-        />
+        <Textarea ref={textareaRef} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={handleKeyDown} placeholder={isListening ? "Listening..." : placeholder} className="min-h-[24px] max-h-[200px] w-full resize-none border-0 bg-transparent p-1 px-2 focus-visible:ring-0 focus-visible:ring-offset-0 text-base placeholder:text-muted-foreground/50 scrollbar-hide" rows={1} />
         <div className="flex items-center gap-2 ml-2 mb-0.5">
-             <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={toggleListening}
-                className={cn(
-                  "h-8 w-8 transition-colors",
-                  isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted-foreground hover:text-primary"
-                )}
-                title={isListening ? "Stop listening" : "Start voice input"}
-             >
-                {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-             </Button>
-             <Button 
-                variant="ghost" 
-                size="icon"
-                onClick={() => setIsResearchMode(!isResearchMode)}
-                className={cn(
-                  "h-8 w-8 transition-colors",
-                  isResearchMode ? "text-indigo-500 bg-indigo-500/10" : "text-muted-foreground hover:text-primary"
-                )}
-                title="Deep Research Mode"
-             >
-                <Brain className="h-5 w-5" />
-             </Button>
-             <Button
-                onClick={() => handleSubmit()}
-                disabled={!query.trim()}
-                size="icon"
-                className={cn(
-                    "h-8 w-8 rounded-lg transition-all duration-200",
-                    query.trim() 
-                        ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" 
-                        : "bg-secondary text-muted-foreground cursor-not-allowed"
-                )}
-            >
-                <ArrowRight className="h-4 w-4" />
-            </Button>
+          <Button variant="ghost" size="icon" onClick={toggleListening} className={cn("h-8 w-8 transition-colors", isListening ? "text-red-500 animate-pulse bg-red-500/10" : "text-muted-foreground hover:text-primary")} title={isListening ? "Stop listening" : "Start voice input"}>
+            {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => setIsResearchMode(!isResearchMode)} className={cn("h-8 w-8 transition-colors", isResearchMode ? "text-indigo-500 bg-indigo-500/10" : "text-muted-foreground hover:text-primary")} title="Deep Research Mode">
+            <Brain className="h-5 w-5" />
+          </Button>
+          <Button onClick={() => handleSubmit()} disabled={!query.trim()} size="icon" className={cn("h-8 w-8 rounded-lg transition-all duration-200", query.trim() ? "bg-primary text-primary-foreground shadow-md hover:bg-primary/90" : "bg-secondary text-muted-foreground cursor-not-allowed")}>
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
       {centered && (

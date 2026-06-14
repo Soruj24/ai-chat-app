@@ -1,7 +1,7 @@
  "use client";
  
  import React from "react";
- import { AIInput } from "@/components/ai/AIInput";
+ import { ChatPromptInput } from "@/components/chat/ChatPromptInput";
  import { SuggestedPrompts } from "./SuggestedPrompts";
  import { TrendingQuestions } from "@/components/ai/TrendingQuestions";
  import { motion } from "framer-motion";
@@ -39,14 +39,13 @@
          </p>
        </div>
  
-       <div className="w-full max-w-2xl">
-         <AIInput
-           onSearch={onSearch}
-           centered
-           selectedModel={selectedModel}
-           onModelChange={onModelChange}
-         />
-       </div>
+        <div className="w-full max-w-2xl">
+          <ChatPromptInput
+            onSearch={onSearch}
+            selectedModel={selectedModel}
+            onModelChange={onModelChange}
+          />
+        </div>
  
        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 w-full max-w-4xl px-4">
          <SuggestedPrompts onSelect={onSearch} />
