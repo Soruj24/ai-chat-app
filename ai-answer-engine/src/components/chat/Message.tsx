@@ -3,7 +3,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Copy, Share2, RefreshCw, Check, Volume2, VolumeX, Bookmark, Download } from "lucide-react";
+import { Copy, Share2, RefreshCw, Check, Volume2, VolumeX, Bookmark, Download, Pin, Heart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { showToast } from "@/lib/swal";
 import { motion } from "framer-motion";
@@ -24,6 +24,8 @@ import {
   MessageToolbar,
 } from "@/components/ai-elements/message";
 import { Suggestions, Suggestion } from "@/components/ai-elements/suggestion";
+import { Reasoning, ReasoningTrigger, ReasoningContent } from "@/components/ai-elements/reasoning";
+import { TaskDisplay } from "@/components/ai/TaskDisplay";
 
 interface MessageProps {
   id?: string;
@@ -33,15 +35,20 @@ interface MessageProps {
   images?: string[];
   isStreaming?: boolean;
   researchSteps?: ResearchStep[];
+  reasoning?: string;
   suggestions?: string[];
   isBookmarked?: boolean;
+  isPinned?: boolean;
+  isFavorite?: boolean;
   onBookmark?: () => void;
+  onPin?: () => void;
+  onFavorite?: () => void;
   onShare?: () => void;
   onSuggestionClick?: (suggestion: string) => void;
 }
 
 export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function Message(
-  { id, role, content, sources, images, isStreaming, researchSteps, suggestions, isBookmarked, onBookmark, onShare, onSuggestionClick },
+  { id, role, content, sources, images, isStreaming, researchSteps, reasoning, suggestions, isBookmarked, isPinned, isFavorite, onBookmark, onPin, onFavorite, onShare, onSuggestionClick },
   ref,
 ) {
   const isUser = role === "user";
@@ -62,7 +69,7 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
   const handleDownloadImage = async () => {
     if (!messageRef.current) return;
     try {
-      const canvas = await html2canvas(messageRef.current, { backgroundColor: "transparent", scale: 2 });
+      const canvas = await html2canvas(messageRef.current, { background: "transparent", logging: false });
       const link = document.createElement("a");
       link.href = canvas.toDataURL("image/png");
       link.download = `ai-answer-${Date.now()}.png`;
@@ -81,7 +88,7 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
   return (
     <motion.div
       layout
-      ref={(node) => { messageRef.current = node; if (typeof ref === "function") ref(node); else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node; }}
+      ref={(node) => { (messageRef as React.MutableRefObject<HTMLDivElement | null>).current = node; if (typeof ref === "function") ref(node); else if (ref) (ref as React.MutableRefObject<HTMLDivElement | null>).current = node; }}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
@@ -101,7 +108,18 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
             </div>
           ) : (
             <div className="w-full space-y-6">
-              {researchSteps && researchSteps.length > 0 && <ResearchProcess steps={researchSteps} className="mb-6" />}
+              {researchSteps && researchSteps.length > 0 && (
+                <>
+                  <ResearchProcess steps={researchSteps} className="mb-6" />
+                  <TaskDisplay steps={researchSteps} title="Research Tasks" defaultOpen={false} />
+                </>
+              )}
+              {reasoning && (
+                <Reasoning isStreaming={isStreaming}>
+                  <ReasoningTrigger />
+                  <ReasoningContent>{reasoning}</ReasoningContent>
+                </Reasoning>
+              )}
               <MessageImages images={images || []} />
               <AnswerBadges sources={sources} researchSteps={researchSteps} isStreaming={isStreaming} />
               <MessageResponse>{processedContent}</MessageResponse>
@@ -112,6 +130,8 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
                     <MessageAction tooltip="Copy answer" onClick={handleCopy}>{copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}</MessageAction>
                     <MessageAction tooltip={isSpeaking ? "Stop reading" : "Read aloud"} onClick={handleSpeak} className={isSpeaking ? "text-primary bg-primary/10 animate-pulse" : ""}>{isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}</MessageAction>
                     {onBookmark && <MessageAction tooltip={isBookmarked ? "Bookmarked" : "Bookmark"} onClick={onBookmark}><Bookmark className={cn("h-4 w-4", isBookmarked && "fill-current text-indigo-500")} /></MessageAction>}
+                    {onPin && <MessageAction tooltip={isPinned ? "Unpin" : "Pin"} onClick={onPin}><Pin className={cn("h-4 w-4", isPinned && "fill-current text-amber-500")} /></MessageAction>}
+                    {onFavorite && <MessageAction tooltip={isFavorite ? "Unfavorite" : "Favorite"} onClick={onFavorite}><Heart className={cn("h-4 w-4", isFavorite && "fill-current text-red-500")} /></MessageAction>}
                     <MessageAction tooltip="Download image" onClick={handleDownloadImage}><Download className="h-4 w-4" /></MessageAction>
                     <MessageAction tooltip="Share" onClick={handleShare}><Share2 className="h-4 w-4" /></MessageAction>
                   </MessageActions>

@@ -17,7 +17,7 @@ interface HeaderProps {
     toggleSidebar: () => void;
     selectedModel?: string;
     onModelChange?: (model: string) => void;
-    onExportChat?: (format: 'json' | 'md') => void;
+    onExportChat?: (format: 'json' | 'md' | 'pdf') => void;
 }
 
 export function Header({ selectedModel = "gemini/gemma-4-31b-it", onModelChange, onExportChat }: HeaderProps) {

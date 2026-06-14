@@ -21,6 +21,9 @@ export interface Message {
   sources?: Source[];
   images?: string[];
   researchSteps?: ResearchStep[];
+  reasoning?: string;
   suggestions?: string[];
   isBookmarked?: boolean;
+  isPinned?: boolean;
+  isFavorite?: boolean;
 }

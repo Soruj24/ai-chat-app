@@ -10,6 +10,7 @@ import { useAskAI } from "@/hooks/useAskAI";
 import { useAuth } from "@/context/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import jsPDF from "jspdf";
 
 function ChatContent() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -24,7 +25,7 @@ function ChatContent() {
     setSources(newSources);
   };
 
-  const { messages, ask, isStreaming, history, loadSession, deleteSession, updateSession, startNewChat, selectedModel, setSelectedModel, toggleBookmark } = useAskAI(handleSourcesUpdate);
+  const { messages, ask, isStreaming, history, loadSession, deleteSession, updateSession, startNewChat, selectedModel, setSelectedModel, toggleBookmark, togglePin, toggleFavorite } = useAskAI(handleSourcesUpdate);
 
   // Auto-search if query param exists
   useEffect(() => {
@@ -53,10 +54,57 @@ function ChatContent() {
   }
 
 
-  const handleExportChat = (format: 'json' | 'md') => {
+  const handleExportChat = (format: 'json' | 'md' | 'pdf') => {
     if (messages.length === 0) return;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
+    if (format === 'pdf') {
+      const doc = new jsPDF();
+      let y = 20;
+      
+      doc.setFontSize(16);
+      doc.text("Chat Export", 20, y);
+      y += 10;
+      doc.setFontSize(10);
+      doc.text(`Exported on: ${new Date().toLocaleString()}`, 20, y);
+      y += 15;
+
+      messages.forEach((msg) => {
+        if (y > 270) {
+          doc.addPage();
+          y = 20;
+        }
+        
+        const role = msg.role === 'user' ? 'You' : 'AI';
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text(`${role}:`, 20, y);
+        y += 7;
+        
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        const lines = doc.splitTextToSize(msg.content, 170);
+        doc.text(lines, 20, y);
+        y += lines.length * 5 + 5;
+
+        if (msg.sources && msg.sources.length > 0) {
+          doc.setFontSize(9);
+          doc.setTextColor(100);
+          msg.sources.forEach((s, i) => {
+            if (y > 270) { doc.addPage(); y = 20; }
+            doc.text(`[${i + 1}] ${s.title} - ${s.url}`, 20, y);
+            y += 5;
+          });
+          doc.setTextColor(0);
+          y += 5;
+        }
+      });
+
+      doc.save(`chat-export-${timestamp}.pdf`);
+      return;
+    }
+
     const filename = `chat-export-${timestamp}.${format === 'json' ? 'json' : 'md'}`;
     let content = '';
 
@@ -106,6 +154,8 @@ function ChatContent() {
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
                 onBookmark={toggleBookmark}
+                onPin={togglePin}
+                onFavorite={toggleFavorite}
             />
         </main>
       </div>

@@ -212,6 +212,56 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
     }));
   };
 
+  const togglePin = (messageId: string) => {
+    setMessages((prev) => prev.map((msg) => {
+      if (msg.id === messageId) {
+        const isPinned = !msg.isPinned;
+        try {
+          const savedStr = localStorage.getItem("pinned_messages");
+          const saved = savedStr ? JSON.parse(savedStr) : [];
+          if (isPinned) {
+            if (!saved.includes(messageId)) saved.push(messageId);
+          } else {
+            const idx = saved.indexOf(messageId);
+            if (idx > -1) saved.splice(idx, 1);
+          }
+          localStorage.setItem("pinned_messages", JSON.stringify(saved));
+          window.dispatchEvent(new Event("pinned-updated"));
+        } catch (e) {
+          console.error("Failed to toggle pin:", e);
+        }
+        return { ...msg, isPinned };
+      }
+      return msg;
+    }));
+  };
+
+  const toggleFavorite = (messageId: string) => {
+    setMessages((prev) => prev.map((msg) => {
+      if (msg.id === messageId) {
+        const isFavorite = !msg.isFavorite;
+        try {
+          const savedStr = localStorage.getItem("favorite_messages");
+          const saved = savedStr ? JSON.parse(savedStr) : [];
+          if (isFavorite) {
+            if (!saved.some((m: Message) => m.id === messageId)) {
+              saved.push({ ...msg, isFavorite: true, savedAt: new Date().toISOString() });
+            }
+          } else {
+            const idx = saved.findIndex((m: Message) => m.id === messageId);
+            if (idx > -1) saved.splice(idx, 1);
+          }
+          localStorage.setItem("favorite_messages", JSON.stringify(saved));
+          window.dispatchEvent(new Event("favorites-updated"));
+        } catch (e) {
+          console.error("Failed to toggle favorite:", e);
+        }
+        return { ...msg, isFavorite };
+      }
+      return msg;
+    }));
+  };
+
   const ask = useCallback(
     async (
       query: string,
@@ -403,5 +453,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
     selectedModel,
     setSelectedModel,
     toggleBookmark,
+    togglePin,
+    toggleFavorite,
   };
 }

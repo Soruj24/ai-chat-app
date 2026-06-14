@@ -20,6 +20,8 @@ interface ChatAreaProps {
   selectedModel?: string;
   onModelChange?: (model: string) => void;
   onBookmark?: (messageId: string) => void;
+  onPin?: (messageId: string) => void;
+  onFavorite?: (messageId: string) => void;
 }
 
 export function ChatArea({
@@ -29,6 +31,8 @@ export function ChatArea({
   selectedModel,
   onModelChange,
   onBookmark,
+  onPin,
+  onFavorite,
 }: ChatAreaProps) {
   const handleSearch = async (
     query: string,
@@ -43,7 +47,7 @@ export function ChatArea({
 
   return (
     <div className="flex flex-col h-full relative w-full">
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0">
         <div className="p-4 md:p-8 h-full">
           <div className="max-w-3xl mx-auto h-full">
             {messages.length === 0 ? (
@@ -57,6 +61,8 @@ export function ChatArea({
                 messages={messages}
                 isStreaming={isStreaming}
                 onBookmark={(id) => onBookmark?.(id)}
+                onPin={(id) => onPin?.(id)}
+                onFavorite={(id) => onFavorite?.(id)}
                 onSuggestionClick={(suggestion) => handleSearch(suggestion)}
               />
             )}

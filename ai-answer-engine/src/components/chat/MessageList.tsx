@@ -14,6 +14,8 @@ interface MessageListProps {
   messages: MessageType[];
   isStreaming: boolean;
   onBookmark?: (messageId: string) => void;
+  onPin?: (messageId: string) => void;
+  onFavorite?: (messageId: string) => void;
   onSuggestionClick: (suggestion: string) => void;
 }
 
@@ -21,6 +23,8 @@ export function MessageList({
   messages,
   isStreaming,
   onBookmark,
+  onPin,
+  onFavorite,
   onSuggestionClick,
 }: MessageListProps) {
   return (
@@ -35,9 +39,14 @@ export function MessageList({
               content={msg.content}
               sources={msg.sources}
               researchSteps={msg.researchSteps}
+              reasoning={msg.reasoning}
               suggestions={msg.suggestions}
               isBookmarked={msg.isBookmarked}
+              isPinned={msg.isPinned}
+              isFavorite={msg.isFavorite}
               onBookmark={() => onBookmark?.(msg.id || "")}
+              onPin={() => onPin?.(msg.id || "")}
+              onFavorite={() => onFavorite?.(msg.id || "")}
               onSuggestionClick={onSuggestionClick}
               isStreaming={index === messages.length - 1 && isStreaming}
             />

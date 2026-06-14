@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { CitationBadge } from "@/components/ai/CitationBadge";
 import { CodeBlockWrapper } from "@/components/ai/CodeBlockWrapper";
+import { Citation } from "./Citation";
 import { DataChart } from "./DataChart";
 import { cn } from "@/lib/utils";
 import type { Source } from "@/types";
@@ -27,8 +27,7 @@ function renderCitation(children: React.ReactNode, sources?: Source[]) {
   const text = Array.isArray(children) ? children[0] : children;
   if (typeof text === "string" && text.startsWith("^")) {
     const index = parseInt(text.substring(1));
-    const source = sources?.[index - 1];
-    if (source) return <CitationBadge index={index} source={source} />;
+    if (sources && sources.length > 0) return <Citation number={index} sources={sources} />;
   }
   return null;
 }
@@ -59,8 +58,7 @@ export const markdownComponents = (sources?: Source[]) => ({
   sup({ children }: { children: React.ReactNode }) {
     if (typeof children === "string" && !isNaN(parseInt(children))) {
       const index = parseInt(children);
-      const source = sources?.[index - 1];
-      if (source) return <CitationBadge index={index} source={source} />;
+      if (sources && sources.length > 0) return <Citation number={index} sources={sources} />;
     }
     return <span className="text-xs text-muted-foreground">{children}</span>;
   },
