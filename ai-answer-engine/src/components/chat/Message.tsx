@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { showToast } from "@/lib/swal";
 import { motion } from "framer-motion";
 import html2canvas from "html2canvas";
+import { useTextToSpeech } from "@/hooks/useTextToSpeech";
 
 import { LoaderTyping } from "@/components/ai/LoaderTyping";
 import { ResearchProcess, ResearchStep } from "./ResearchProcess";
@@ -54,9 +55,19 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
 ) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
   const messageRef = React.useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  
+  const { isEnabled, isAutoRead, isSpeaking, speak, stop, selectedVoice } = useTextToSpeech();
+
+  React.useEffect(() => {
+    if (isAutoRead && !isUser && !isStreaming && content && isEnabled) {
+      const timer = setTimeout(() => {
+        speak({ text: content });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [content, isStreaming, isAutoRead, isUser, isEnabled]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -66,18 +77,9 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
 
   const handleSpeak = () => {
     if (isSpeaking) {
-      window.speechSynthesis.cancel();
-      setIsSpeaking(false);
+      stop();
     } else {
-      const utterance = new SpeechSynthesisUtterance(content);
-      const voices = window.speechSynthesis.getVoices();
-      const preferredVoice =
-        voices.find((v) => v.name.includes("Google US English")) ||
-        voices.find((v) => v.lang === "en-US");
-      if (preferredVoice) utterance.voice = preferredVoice;
-      utterance.onend = () => setIsSpeaking(false);
-      window.speechSynthesis.speak(utterance);
-      setIsSpeaking(true);
+      speak({ text: content });
     }
   };
 
@@ -179,8 +181,22 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
       >
         {/* User Message Bubble */}
         {isUser ? (
-          <div className="bg-primary text-primary-foreground px-5 py-3 rounded-2xl rounded-tr-sm text-base shadow-sm">
-            {content}
+          <div className="space-y-2">
+            {images && images.length > 0 && (
+              <div className="flex flex-wrap gap-2 max-w-[300px]">
+                {images.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Upload ${idx + 1}`}
+                    className="max-h-40 max-w-full rounded-lg border border-primary/20"
+                  />
+                ))}
+              </div>
+            )}
+            <div className="bg-primary text-primary-foreground px-5 py-3 rounded-2xl rounded-tr-sm text-base shadow-sm">
+              {content}
+            </div>
           </div>
         ) : (
           <div className="w-full space-y-6">
@@ -258,7 +274,10 @@ export const Message = React.forwardRef<HTMLDivElement, MessageProps>(function M
                         variant="ghost"
                         size="icon"
                         onClick={handleSpeak}
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        className={cn(
+                          "h-8 w-8 hover:text-foreground",
+                          isSpeaking ? "text-primary bg-primary/10 animate-pulse" : "text-muted-foreground"
+                        )}
                         aria-label={isSpeaking ? "Stop reading" : "Read aloud"}
                       >
                         {isSpeaking ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}

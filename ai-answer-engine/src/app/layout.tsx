@@ -3,6 +3,8 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AuthProvider } from "@/context/AuthContext";
+import { TTSProvider } from "@/hooks/useTextToSpeech";
+import { TemplatesProvider } from "@/hooks/usePromptTemplates";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -37,7 +39,11 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
-            {children}
+            <TTSProvider>
+              <TemplatesProvider>
+                {children}
+              </TemplatesProvider>
+            </TTSProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

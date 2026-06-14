@@ -6,7 +6,7 @@
    selectedModel?: string;
  }
  
- export function HeaderModelBadge({ selectedModel = "llama3.2" }: HeaderModelBadgeProps) {
+ export function HeaderModelBadge({ selectedModel = "groq/llama-3.3-70b-versatile" }: HeaderModelBadgeProps) {
    const getModelDisplayName = (model: string) => {
      if (model.startsWith("groq/")) {
        const parts = model.split("/");

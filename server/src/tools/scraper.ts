@@ -10,8 +10,8 @@ export class WebScraperTool extends DynamicStructuredTool {
             schema: z.object({
                 url: z.any().describe("The URL to scrape")
             }),
-            func: async ({ url }) => {
-                const targetUrl = typeof url === 'object' && url.value ? url.value : (typeof url === 'string' ? url : String(url));
+            func: async ({ url }: { url: any }) => {
+                const targetUrl = typeof url === 'object' && (url as any).value ? (url as any).value : (typeof url === 'string' ? url : String(url));
                 
                 try {
                     console.log(`[WebScraper] Scraping: ${targetUrl}`);

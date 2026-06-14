@@ -10,6 +10,7 @@ import { HeaderModelBadge } from "./HeaderModelBadge";
 import { HeaderExportMenu } from "./HeaderExportMenu";
 import { HeaderSearchButton } from "./HeaderSearchButton";
 import { HeaderNotificationsButton } from "./HeaderNotificationsButton";
+import { HeaderTTSButton } from "./HeaderTTSButton";
 
 interface HeaderProps {
     toggleSidebar: () => void;
@@ -33,6 +34,7 @@ export function Header({  selectedModel = "llama3.2", onExportChat }: HeaderProp
         <div className="flex items-center gap-2 md:gap-4">
           {onExportChat && <HeaderExportMenu onExportChat={onExportChat} />}
           <HeaderSearchButton />
+          <HeaderTTSButton />
           <BookmarksList />
           <HeaderNotificationsButton />
           <UserDropdown />

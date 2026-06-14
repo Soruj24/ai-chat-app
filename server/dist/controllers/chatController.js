@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.askQuestion = exports.updateSession = exports.deleteSession = exports.getSession = exports.getHistory = void 0;
 const agent_1 = require("../services/agent");
@@ -163,7 +196,7 @@ const updateSession = async (req, res) => {
 exports.updateSession = updateSession;
 const askQuestion = async (req, res) => {
     var _a, _b, _c;
-    const { message, query, input, sessionId, isResearchMode, model, tone, focusMode, } = req.body;
+    const { message, query, input, sessionId, isResearchMode, model, tone, focusMode, images, } = req.body;
     const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.userId;
     const userMessage = message || query || input;
     const selectedModel = model || "llama3.2";
@@ -182,7 +215,7 @@ const askQuestion = async (req, res) => {
             Boolean(isResearchMode);
         const { agent } = useDeep
             ? await (0, agent_1.createDeepAgent)(currentSessionId, selectedModel, tone, String(focusMode || "deep"))
-            : await (0, agent_1.createChatAgent)(currentSessionId, isResearchMode, selectedModel, tone, focusMode);
+            : await (0, agent_1.createChatAgent)(currentSessionId, isResearchMode, selectedModel, tone, focusMode, images);
         let sanitizedHistory = [];
         if (userId) {
             try {
@@ -216,13 +249,35 @@ const askQuestion = async (req, res) => {
                 sanitizedHistory = sanitizedHistory.slice(-10);
             }
         }
+        let processedMessage = userMessage;
+        let userUploadedImages = images || [];
+        if (userUploadedImages.length > 0) {
+            try {
+                const visionTool = new (await Promise.resolve().then(() => __importStar(require("../tools/vision")))).VisionAnalysisTool();
+                let imageAnalysis = "";
+                for (const [idx, img] of userUploadedImages.entries()) {
+                    const visionInput = JSON.stringify({
+                        image: img,
+                        question: userMessage || "Describe this image in detail."
+                    });
+                    const result = await visionTool._call(visionInput);
+                    imageAnalysis += `\n[Image ${idx + 1} Analysis]: ${result}`;
+                }
+                processedMessage = `User uploaded ${userUploadedImages.length} image(s). ${userMessage || "Please analyze these images."}${imageAnalysis}`;
+                res.write(`data: ${JSON.stringify({ type: "step", content: `Analyzing ${userUploadedImages.length} image(s)...`, tool: "vision_analysis" })}\n\n`);
+            }
+            catch (error) {
+                console.error("Vision analysis error:", error);
+                processedMessage = userMessage;
+            }
+        }
         const inputs = {
-            messages: [...sanitizedHistory, new messages_1.HumanMessage(userMessage)],
+            messages: [...sanitizedHistory, new messages_1.HumanMessage(processedMessage)],
         };
         const stream = await agent.streamEvents(inputs, { version: "v2" });
         let finalAnswer = "";
         let sources = [];
-        let images = [];
+        let responseImages = userUploadedImages;
         const steps = [];
         for await (const event of stream) {
             const eventType = event.event;
@@ -335,7 +390,7 @@ const askQuestion = async (req, res) => {
                                     const newImages = output.images
                                         .filter((img) => typeof img === "string")
                                         .map((img) => img);
-                                    images = [...images, ...newImages];
+                                    responseImages = [...responseImages, ...newImages];
                                 }
                             }
                             if (resultsToProcess.length > 0) {
@@ -374,7 +429,7 @@ const askQuestion = async (req, res) => {
                 }
                 steps.push(`Completed: ${event.name}`);
                 const ranked = rankAndDedupSources(sources);
-                res.write(`data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images, tool: event.name })}\n\n`);
+                res.write(`data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images: responseImages, tool: event.name })}\n\n`);
             }
             else if (eventType === "on_chat_model_stream") {
                 const content = (_c = event.data.chunk) === null || _c === void 0 ? void 0 : _c.content;
@@ -390,7 +445,7 @@ const askQuestion = async (req, res) => {
         try {
             const historyArray = sanitizedHistory || [];
             const historyStr = historyArray
-                .map((m) => `${m._getType()}: ${m.content}`)
+                .map((m) => { var _a; return `${((_a = m._getType) === null || _a === void 0 ? void 0 : _a.call(m)) || 'message'}: ${m.content || ''}`; })
                 .join("\n");
             const fullHistory = `${historyStr}\nhuman: ${userMessage}`;
             suggestions = await (0, agent_1.generateFollowUpQuestions)(fullHistory, finalAnswer, selectedModel);
@@ -400,7 +455,7 @@ const askQuestion = async (req, res) => {
         }
         const rankedDone = rankAndDedupSources(sources);
         const curated = curateSuggestions(suggestions);
-        res.write(`data: ${JSON.stringify({ type: "done", sources: rankedDone, images, suggestions: curated })}\n\n`);
+        res.write(`data: ${JSON.stringify({ type: "done", sources: rankedDone, images: responseImages, suggestions: curated })}\n\n`);
         res.end();
         const saveToMongo = async () => {
             try {

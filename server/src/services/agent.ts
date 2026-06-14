@@ -15,6 +15,7 @@ import { getWeatherTool } from "../tools/weather";
 import { getRedditSearchTool } from "../tools/reddit";
 import { getWikipediaTool } from "../tools/wikipedia";
 import { getImageGenerationTool } from "../tools/image";
+import { getVisionTool } from "../tools/vision";
 
 export const createChatAgent = async (
   sessionId: string,
@@ -22,6 +23,7 @@ export const createChatAgent = async (
   modelName: string = "llama3.2",
   tone: string = "Neutral",
   focusMode: string = "web",
+  images?: string[],
 ) => {
   console.log(
     `Initializing Chat Agent with model: ${modelName}, tone: ${tone}, focusMode: ${focusMode}`,
@@ -55,15 +57,17 @@ export const createChatAgent = async (
   } else {
     llm = new ChatOllama({
       model: modelName,
-      temperature: 0,
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    });
+    } as any);
   }
 
   const mcpTools = await getMCPTools();
 
+  // Add vision tool if images are provided
+  const visionTool = images && images.length > 0 ? [getVisionTool()] : [];
+
   // Tools available in all modes
-  const commonTools = [getCalculatorTool(), getWeatherTool(), ...mcpTools];
+  const commonTools = [getCalculatorTool(), getWeatherTool(), ...mcpTools, ...visionTool];
 
   let tools: Record<string, any>[] = [];
 
@@ -295,9 +299,8 @@ export const createDeepAgent = async (
   } else {
     llm = new ChatOllama({
       model: modelName,
-      temperature: 0,
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    });
+    } as any);
   }
 
   const mcpTools = await getMCPTools();
@@ -418,9 +421,8 @@ export const generateFollowUpQuestions = async (
     // Default to Ollama or fallback if not available
     llm = new ChatOllama({
       model: modelName === "llama3.2" ? "llama3.2" : modelName,
-      temperature: 0.7,
       baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
-    });
+    } as any);
   }
 
   const prompt = `Based on the following conversation and the last answer, suggest 3 short, highly relevant, and interesting follow-up questions the user might want to ask next.
@@ -443,13 +445,11 @@ export const generateFollowUpQuestions = async (
   try {
     // For Groq/Gemini, the invoke might return something different
     const response = await llm.invoke(prompt);
-    const content =
-      typeof response.content === "string"
-        ? response.content
-        : JSON.stringify(response.content);
-    return content
+    const content = (response as any).content;
+    const text = typeof content === "string" ? content : JSON.stringify(content);
+    return text
       .split("\n")
-      .filter((line) => line.trim().length > 0)
+      .filter((line: string) => line.trim().length > 0)
       .slice(0, 3);
   } catch (error) {
     console.error("Error generating follow-up questions:", error);

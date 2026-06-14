@@ -15,6 +15,7 @@ interface ChatAreaProps {
     model?: string,
     tone?: string,
     focusMode?: string,
+    images?: string[],
   ) => Promise<void>;
   isStreaming: boolean;
   selectedModel?: string;
@@ -44,13 +45,13 @@ export function ChatArea({
   const handleSearch = async (
     query: string,
     isResearchMode: boolean = false,
-    model: string = "llama3.2",
+    model: string = "groq/llama-3.3-70b-versatile",
     tone: string = "Neutral",
     focusMode: string = "web",
+    images?: string[],
   ) => {
-    // Force scroll to bottom on new search
     setShouldAutoScroll(true);
-    await ask(query, isResearchMode, selectedModel || model, tone, focusMode);
+    await ask(query, isResearchMode, selectedModel || model, tone, focusMode, images);
   };
 
   useEffect(() => {

@@ -1,6 +1,6 @@
 import { ChatOllama } from "@langchain/ollama";
 import { HumanMessage, SystemMessage, AIMessage } from "@langchain/core/messages";
- 
+
 
 export const maxDuration = 60;
 
@@ -23,7 +23,7 @@ export async function POST(req: Request) {
     formattedMessages.unshift(new SystemMessage(systemPrompt));
 
     const model = new ChatOllama({
-      model: "llama3.2",
+      model: "gemma4",
       temperature: 0.7,
       baseUrl: "http://localhost:11434", // Default Ollama URL
     });
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     });
 
     return new Response(textStream, {
-      headers: { 
+      headers: {
         "Content-Type": "text/plain; charset=utf-8",
         "Transfer-Encoding": "chunked"
       },

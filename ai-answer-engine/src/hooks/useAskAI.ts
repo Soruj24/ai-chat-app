@@ -13,7 +13,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [history, setHistory] = useState<ChatSession[]>([]);
-  const [selectedModel, setSelectedModel] = useState("llama3.2");
+  const [selectedModel, setSelectedModel] = useState("groq/llama-3.3-70b-versatile");
   const { token, isLoading: authLoading } = useAuth();
 
   const rankAndDedupSources = useCallback((sources: Source[]): Source[] => {
@@ -219,12 +219,14 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
       model: string = "llama3.2",
       tone: string = "Neutral",
       focusMode: string = "web",
+      images?: string[],
     ) => {
-      // Add user message
+      // Add user message with images
       const userMessage: Message = { 
         id: Date.now().toString(),
         role: "user", 
-        content: query 
+        content: query,
+        images: images,
       };
       setMessages((prev) => [...prev, userMessage]);
       setSelectedModel(model);
@@ -273,6 +275,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
             model: model,
             tone: tone,
             focusMode: focusMode,
+            images: images,
           }),
         });
         if (!response.ok) throw new Error("Failed to connect to backend");

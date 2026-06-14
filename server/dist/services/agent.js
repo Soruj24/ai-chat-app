@@ -18,7 +18,8 @@ const weather_1 = require("../tools/weather");
 const reddit_1 = require("../tools/reddit");
 const wikipedia_1 = require("../tools/wikipedia");
 const image_1 = require("../tools/image");
-const createChatAgent = async (sessionId, isResearchMode = false, modelName = "llama3.2", tone = "Neutral", focusMode = "web") => {
+const vision_1 = require("../tools/vision");
+const createChatAgent = async (sessionId, isResearchMode = false, modelName = "llama3.2", tone = "Neutral", focusMode = "web", images) => {
     console.log(`Initializing Chat Agent with model: ${modelName}, tone: ${tone}, focusMode: ${focusMode}`);
     let llm;
     if (modelName.startsWith("groq/")) {
@@ -46,12 +47,12 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
     else {
         llm = new ollama_1.ChatOllama({
             model: modelName,
-            temperature: 0,
             baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
         });
     }
     const mcpTools = await (0, mcp_1.getMCPTools)();
-    const commonTools = [(0, calculator_1.getCalculatorTool)(), (0, weather_1.getWeatherTool)(), ...mcpTools];
+    const visionTool = images && images.length > 0 ? [(0, vision_1.getVisionTool)()] : [];
+    const commonTools = [(0, calculator_1.getCalculatorTool)(), (0, weather_1.getWeatherTool)(), ...mcpTools, ...visionTool];
     let tools = [];
     if (focusMode === "academic") {
         tools = [
@@ -274,14 +275,17 @@ const createDeepAgent = async (sessionId, modelName = "llama3.2", tone = "Neutra
     else {
         llm = new ollama_1.ChatOllama({
             model: modelName,
-            temperature: 0,
             baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
         });
     }
     const mcpTools = await (0, mcp_1.getMCPTools)();
     const tools = [
         (0, serper_1.getSerperTool)(),
-        (0, search_1.getSearchTool)({ maxResults: 10, searchDepth: "advanced", includeImages: true }),
+        (0, search_1.getSearchTool)({
+            maxResults: 10,
+            searchDepth: "advanced",
+            includeImages: true,
+        }),
         (0, academic_1.getAcademicSearchTool)(),
         (0, news_1.getNewsTool)(),
         (0, wikipedia_1.getWikipediaTool)(),
@@ -328,21 +332,28 @@ RULES:
         const ToolNode = pre.ToolNode;
         const toolNode = new ToolNode(tools);
         const agentNode = async (state) => {
-            return await llm.invoke([{ role: "system", content: systemPrompt }, ...state.messages]);
+            return await llm.invoke([
+                { role: "system", content: systemPrompt },
+                ...state.messages,
+            ]);
         };
         const shouldCallTools = (state) => {
             const last = state.messages[state.messages.length - 1];
             const has = last &&
                 (Array.isArray(last.tool_calls) ||
                     Array.isArray(last.toolCalls) ||
-                    (last.additional_kwargs && Array.isArray(last.additional_kwargs.tool_calls)));
+                    (last.additional_kwargs &&
+                        Array.isArray(last.additional_kwargs.tool_calls)));
             return has ? "tools" : END;
         };
         const graph = new StateGraph(MessagesAnnotation)
             .addNode("agent", agentNode)
             .addNode("tools", toolNode)
             .addEdge(START, "agent")
-            .addConditionalEdges("agent", shouldCallTools, { tools: "tools", [END]: END })
+            .addConditionalEdges("agent", shouldCallTools, {
+            tools: "tools",
+            [END]: END,
+        })
             .addEdge("tools", "agent")
             .compile();
         return { agent: graph };
@@ -378,7 +389,6 @@ const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "l
     else {
         llm = new ollama_1.ChatOllama({
             model: modelName === "llama3.2" ? "llama3.2" : modelName,
-            temperature: 0.7,
             baseUrl: process.env.OLLAMA_BASE_URL || "http://localhost:11434",
         });
     }
@@ -400,10 +410,9 @@ const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "l
     Return ONLY the 3 questions, one per line. Do not include numbering, bullet points, or any introductory text.`;
     try {
         const response = await llm.invoke(prompt);
-        const content = typeof response.content === "string"
-            ? response.content
-            : JSON.stringify(response.content);
-        return content
+        const content = response.content;
+        const text = typeof content === "string" ? content : JSON.stringify(content);
+        return text
             .split("\n")
             .filter((line) => line.trim().length > 0)
             .slice(0, 3);

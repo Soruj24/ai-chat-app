@@ -3,18 +3,19 @@
  import React from "react";
  import { AIInput } from "@/components/ai/AIInput";
  
- interface StickyInputProps {
-   show: boolean;
-   onSearch: (
-     query: string,
-     isResearchMode?: boolean,
-     model?: string,
-     tone?: string,
-     focusMode?: string,
-   ) => Promise<void>;
-   selectedModel?: string;
-   onModelChange?: (model: string) => void;
- }
+interface StickyInputProps {
+  show: boolean;
+  onSearch: (
+    query: string,
+    isResearchMode?: boolean,
+    model?: string,
+    tone?: string,
+    focusMode?: string,
+    images?: string[],
+  ) => Promise<void>;
+  selectedModel?: string;
+  onModelChange?: (model: string) => void;
+}
  
  export function StickyInput({
    show,

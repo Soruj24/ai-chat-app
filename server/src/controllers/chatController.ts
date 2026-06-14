@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { createChatAgent, createDeepAgent, generateFollowUpQuestions } from "../services/agent";
+import {
+  createChatAgent,
+  createDeepAgent,
+  generateFollowUpQuestions,
+} from "../services/agent";
 import { Document } from "@langchain/core/documents";
 import { Chat } from "../models/Chat";
 import { Conversation } from "../models/Conversation";
@@ -183,6 +187,7 @@ export const askQuestion = async (req: Request, res: Response) => {
     model,
     tone,
     focusMode,
+    images,
   } = req.body;
 
   const userId = req.user?.userId;
@@ -212,13 +217,19 @@ export const askQuestion = async (req: Request, res: Response) => {
       String(focusMode || "").toLowerCase() === "research" ||
       Boolean(isResearchMode);
     const { agent } = useDeep
-      ? await createDeepAgent(currentSessionId, selectedModel, tone, String(focusMode || "deep"))
+      ? await createDeepAgent(
+          currentSessionId,
+          selectedModel,
+          tone,
+          String(focusMode || "deep"),
+        )
       : await createChatAgent(
           currentSessionId,
           isResearchMode,
           selectedModel,
           tone,
           focusMode,
+          images,
         );
 
     // Fetch chat history from database (only if user is present)
@@ -262,8 +273,38 @@ export const askQuestion = async (req: Request, res: Response) => {
       }
     }
 
+    // If user uploaded images, process them with vision tool first
+    let processedMessage = userMessage;
+    let userUploadedImages: string[] = images || [];
+    
+    if (userUploadedImages.length > 0) {
+      try {
+        const visionTool = new (await import("../tools/vision")).VisionAnalysisTool();
+        let imageAnalysis = "";
+        
+        for (const [idx, img] of userUploadedImages.entries()) {
+          const visionInput = JSON.stringify({
+            image: img,
+            question: userMessage || "Describe this image in detail."
+          });
+          const result = await visionTool._call(visionInput);
+          imageAnalysis += `\n[Image ${idx + 1} Analysis]: ${result}`;
+        }
+        
+        processedMessage = `User uploaded ${userUploadedImages.length} image(s). ${userMessage || "Please analyze these images."}${imageAnalysis}`;
+        
+        // Send initial step
+        res.write(
+          `data: ${JSON.stringify({ type: "step", content: `Analyzing ${userUploadedImages.length} image(s)...`, tool: "vision_analysis" })}\n\n`,
+        );
+      } catch (error) {
+        console.error("Vision analysis error:", error);
+        processedMessage = userMessage;
+      }
+    }
+
     const inputs = {
-      messages: [...sanitizedHistory, new HumanMessage(userMessage)],
+      messages: [...sanitizedHistory, new HumanMessage(processedMessage)],
     };
 
     // Stream the events
@@ -276,7 +317,7 @@ export const askQuestion = async (req: Request, res: Response) => {
       content: string;
       domain?: string;
     }[] = [];
-    let images: string[] = [];
+    let responseImages: string[] = userUploadedImages;
     const steps: string[] = [];
 
     for await (const event of stream) {
@@ -401,7 +442,7 @@ export const askQuestion = async (req: Request, res: Response) => {
                   const newImages = (output as any).images
                     .filter((img: unknown) => typeof img === "string")
                     .map((img: string) => img);
-                  images = [...images, ...newImages];
+                  responseImages = [...responseImages, ...newImages];
                 }
               }
 
@@ -444,7 +485,7 @@ export const askQuestion = async (req: Request, res: Response) => {
         // Rank + dedup before streaming to client
         const ranked = rankAndDedupSources(sources);
         res.write(
-          `data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images, tool: event.name })}\n\n`,
+          `data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images: responseImages, tool: event.name })}\n\n`,
         );
       } else if (eventType === "on_chat_model_stream") {
         const content = event.data.chunk?.content;
@@ -465,7 +506,7 @@ export const askQuestion = async (req: Request, res: Response) => {
       // memoryVariables was removed, use sanitizedHistory instead
       const historyArray = sanitizedHistory || [];
       const historyStr = historyArray
-        .map((m) => `${m._getType()}: ${m.content}`)
+        .map((m: any) => `${m._getType?.() || 'message'}: ${m.content || ''}`)
         .join("\n");
       const fullHistory = `${historyStr}\nhuman: ${userMessage}`;
 
@@ -483,7 +524,7 @@ export const askQuestion = async (req: Request, res: Response) => {
     // Curate suggestions
     const curated = curateSuggestions(suggestions);
     res.write(
-      `data: ${JSON.stringify({ type: "done", sources: rankedDone, images, suggestions: curated })}\n\n`,
+      `data: ${JSON.stringify({ type: "done", sources: rankedDone, images: responseImages, suggestions: curated })}\n\n`,
     );
     res.end();
 

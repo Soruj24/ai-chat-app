@@ -13,7 +13,7 @@ export const getVectorSearchTool = () => {
     schema: z.object({
       query: z.string().describe("The search query to find relevant documents"),
     }),
-    func: async ({ query }) => {
+    func: async ({ query }: { query: string }) => {
       console.log(`[Vector] Searching for: ${query}`);
 
       try {

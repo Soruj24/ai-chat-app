@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Textarea } from "@/components/ui/textarea";
 
 interface SearchInputProps {
-  onSearch: (query: string, isResearchMode: boolean) => void;
+  onSearch: (query: string, isResearchMode: boolean, images?: string[]) => void;
   className?: string;
   placeholder?: string;
   centered?: boolean;
@@ -17,6 +17,9 @@ export function SearchInput({ onSearch, className, placeholder = "Ask anything..
   const [query, setQuery] = useState("");
   const [isResearchMode, setIsResearchMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   type SpeechRecognitionConstructor = new () => {
     continuous: boolean;
@@ -33,13 +36,50 @@ export function SearchInput({ onSearch, className, placeholder = "Ask anything..
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (query.trim()) {
-      onSearch(query, isResearchMode);
+    if (query.trim() || attachedImages.length > 0) {
+      onSearch(query, isResearchMode, attachedImages);
       setQuery("");
+      setAttachedImages([]);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
     }
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    const newImages: string[] = [];
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        const promise = new Promise<void>((resolve) => {
+          reader.onload = (event) => {
+            if (event.target?.result) {
+              newImages.push(event.target.result as string);
+              resolve();
+            }
+          };
+        });
+        reader.readAsDataURL(file);
+        await promise;
+      }
+    }
+
+    setAttachedImages((prev) => [...prev, ...newImages]);
+    setIsUploading(false);
+    
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setAttachedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -95,12 +135,54 @@ export function SearchInput({ onSearch, className, placeholder = "Ask anything..
 
   return (
     <div className={cn("relative w-full max-w-3xl mx-auto", className)}>
+      {attachedImages.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3 px-1">
+          {attachedImages.map((img, idx) => (
+            <div key={idx} className="relative group">
+              <img
+                src={img}
+                alt={`Attachment ${idx + 1}`}
+                className="h-16 w-16 object-cover rounded-lg border border-border"
+              />
+              <button
+                type="button"
+                onClick={() => removeImage(idx)}
+                className="absolute -top-2 -right-2 h-5 w-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <div className={cn(
         "relative flex items-end w-full p-3 rounded-2xl border border-input/50 bg-background/50 backdrop-blur-xl shadow-sm focus-within:ring-2 focus-within:ring-primary/20 transition-all duration-300",
         centered ? "shadow-lg border-primary/20 bg-background/80" : "shadow-md"
       )}>
-        <Button variant="ghost" size="icon" className="h-8 w-8 mb-1 mr-2 text-muted-foreground hover:text-primary transition-colors">
-          <Paperclip className="h-5 w-5" />
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleImageUpload}
+          className="hidden"
+          id="image-upload"
+        />
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className={cn(
+            "h-8 w-8 mb-1 mr-2 transition-colors",
+            attachedImages.length > 0 ? "text-primary" : "text-muted-foreground hover:text-primary"
+          )}
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+        >
+          {isUploading ? (
+            <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <Paperclip className="h-5 w-5" />
+          )}
         </Button>
         <Textarea
           ref={textareaRef}

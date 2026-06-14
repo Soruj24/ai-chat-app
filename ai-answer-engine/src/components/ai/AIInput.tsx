@@ -12,6 +12,7 @@ import { AIInputToolbarRight } from "@/components/ai/AIInputToolbarRight";
 import { AIInputResearchBanner } from "@/components/ai/AIInputResearchBanner";
 import { AIInputKeyboardHint } from "@/components/ai/AIInputKeyboardHint";
 import { AIInputFeatureBanner } from "@/components/ai/AIInputFeatureBanner";
+import { Image, X } from "lucide-react";
 
 interface SpeechRecognitionEvent extends Event {
   results: SpeechRecognitionResultList;
@@ -49,6 +50,7 @@ export interface AIInputProps {
     model: string,
     tone: string,
     focusMode: string,
+    images?: string[],
   ) => void;
   className?: string;
   placeholder?: string;
@@ -77,6 +79,7 @@ export function AIInput({
     name: string;
     content: string;
   } | null>(null);
+  const [attachedImages, setAttachedImages] = useState<string[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -122,6 +125,19 @@ export function AIInput({
       const file = e.target.files[0];
       setIsUploading(true);
 
+      if (file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          if (event.target?.result) {
+            setAttachedImages((prev) => [...prev, event.target!.result as string]);
+          }
+        };
+        reader.readAsDataURL(file);
+        setIsUploading(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+
       const formData = new FormData();
       formData.append("file", file);
 
@@ -142,7 +158,6 @@ export function AIInput({
         alert("Failed to upload file");
       } finally {
         setIsUploading(false);
-        // Reset file input
         if (fileInputRef.current) fileInputRef.current.value = "";
       }
     }
@@ -150,12 +165,11 @@ export function AIInput({
 
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
-    if ((query.trim() || attachment) && !isGenerating) {
+    if ((query.trim() || attachment || attachedImages.length > 0) && !isGenerating) {
       let finalQuery = query;
       if (attachment) {
         finalQuery = `Context from uploaded file (${attachment.name}):\n${attachment.content}\n\nQuestion: ${query}`;
       }
-      // Auto-enable research for complex queries
       const words = finalQuery.trim().split(/\s+/);
       const trigger = /\b(why|how|compare|vs\.?|trend|future|evidence|sources?|cite|research|analysis)\b/i.test(finalQuery);
       const autoResearch = words.length >= 8 || trigger;
@@ -165,11 +179,12 @@ export function AIInput({
         selectedModel,
         "Neutral",
         focusMode,
+        attachedImages.length > 0 ? attachedImages : undefined,
       );
       setQuery("");
       setAttachment(null);
+      setAttachedImages([]);
       setIsResearchMode(false);
-      // Reset height
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
       }
@@ -200,6 +215,26 @@ export function AIInput({
 
   return (
     <div className={cn("relative w-full mx-auto", className)}>
+      {attachedImages.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3 px-1">
+          {attachedImages.map((img, idx) => (
+            <div key={idx} className="relative group animate-in fade-in slide-in-from-top-2">
+              <img
+                src={img}
+                alt={`Attachment ${idx + 1}`}
+                className="h-16 w-16 object-cover rounded-lg border border-border"
+              />
+              <button
+                type="button"
+                onClick={() => setAttachedImages((prev) => prev.filter((_, i) => i !== idx))}
+                className="absolute -top-2 -right-2 h-5 w-5 bg-destructive text-destructive-foreground rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <motion.div
         layout
         initial={false}
@@ -257,7 +292,7 @@ export function AIInput({
               ref={fileInputRef}
               className="hidden"
               onChange={handleFileSelect}
-              accept=".pdf,.txt,.md,.json"
+              accept=".pdf,.txt,.md,.json,image/*"
             />
             <div className="flex items-center justify-between px-2 pb-2">
               <AIInputToolbarLeft
