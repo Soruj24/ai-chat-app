@@ -17,6 +17,23 @@ import {
   ToolMessage,
 } from "@langchain/core/messages";
 
+/**
+ * Filters out "thinking" content parts from AI messages.
+ * Gemma 4 models return thinking content that LangChain Google GenAI SDK cannot handle.
+ */
+function stripThinkingContent(messages: any[]): any[] {
+  return messages.map((msg: any) => {
+    const content = msg?.content;
+    if (Array.isArray(content)) {
+      const filtered = content.filter((part: any) => part?.type !== "thinking");
+      if (filtered.length === 0) return new AIMessage("");
+      if (filtered.length === 1 && filtered[0]?.type === "text") return new AIMessage(filtered[0].text);
+      return new AIMessage({ content: filtered, additional_kwargs: msg?.additional_kwargs ?? {} });
+    }
+    return msg;
+  });
+}
+
 type SourceLike = {
   title: string;
   url: string;
@@ -303,8 +320,11 @@ export const askQuestion = async (req: Request, res: Response) => {
       }
     }
 
+    // Filter out thinking content from history before sending to model
+    const cleanHistory = stripThinkingContent(sanitizedHistory);
+
     const inputs = {
-      messages: [...sanitizedHistory, new HumanMessage(processedMessage)],
+      messages: [...cleanHistory, new HumanMessage(processedMessage)],
     };
 
     // Stream the events

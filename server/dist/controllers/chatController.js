@@ -42,6 +42,21 @@ const pinecone_1 = require("../services/pinecone");
 const ollama_1 = require("@langchain/ollama");
 const pinecone_2 = require("@langchain/pinecone");
 const messages_1 = require("@langchain/core/messages");
+function stripThinkingContent(messages) {
+    return messages.map((msg) => {
+        var _a, _b;
+        const content = msg === null || msg === void 0 ? void 0 : msg.content;
+        if (Array.isArray(content)) {
+            const filtered = content.filter((part) => (part === null || part === void 0 ? void 0 : part.type) !== "thinking");
+            if (filtered.length === 0)
+                return new messages_1.AIMessage("");
+            if (filtered.length === 1 && ((_a = filtered[0]) === null || _a === void 0 ? void 0 : _a.type) === "text")
+                return new messages_1.AIMessage(filtered[0].text);
+            return new messages_1.AIMessage({ content: filtered, additional_kwargs: (_b = msg === null || msg === void 0 ? void 0 : msg.additional_kwargs) !== null && _b !== void 0 ? _b : {} });
+        }
+        return msg;
+    });
+}
 function rankAndDedupSources(list) {
     const seen = new Set();
     const score = (s) => {
@@ -271,8 +286,9 @@ const askQuestion = async (req, res) => {
                 processedMessage = userMessage;
             }
         }
+        const cleanHistory = stripThinkingContent(sanitizedHistory);
         const inputs = {
-            messages: [...sanitizedHistory, new messages_1.HumanMessage(processedMessage)],
+            messages: [...cleanHistory, new messages_1.HumanMessage(processedMessage)],
         };
         const stream = await agent.streamEvents(inputs, { version: "v2" });
         let finalAnswer = "";
