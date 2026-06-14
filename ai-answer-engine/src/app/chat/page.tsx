@@ -96,7 +96,7 @@ function ChatContent() {
       />
       
       <div className="flex-1 flex flex-col relative min-w-0 overflow-hidden">
-        <Header toggleSidebar={toggleSidebar} selectedModel={selectedModel} onExportChat={handleExportChat} />
+        <Header toggleSidebar={toggleSidebar} selectedModel={selectedModel} onModelChange={setSelectedModel} onExportChat={handleExportChat} />
         
         <main className="flex-1 flex flex-col relative overflow-hidden">
             <ChatArea 

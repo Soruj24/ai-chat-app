@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { UserDropdown } from "@/components/layout/UserDropdown";
 import { Menu } from "lucide-react";
@@ -11,15 +11,30 @@ import { HeaderExportMenu } from "./HeaderExportMenu";
 import { HeaderSearchButton } from "./HeaderSearchButton";
 import { HeaderNotificationsButton } from "./HeaderNotificationsButton";
 import { HeaderTTSButton } from "./HeaderTTSButton";
+import { ModelSelectorDialog } from "@/components/ai/ModelSelectorDialog";
 
 interface HeaderProps {
     toggleSidebar: () => void;
     selectedModel?: string;
+    onModelChange?: (model: string) => void;
     onExportChat?: (format: 'json' | 'md') => void;
 }
 
-export function Header({  selectedModel = "gemini/gemma-4-31b-it", onExportChat }: HeaderProps) {
+export function Header({ selectedModel = "gemini/gemma-4-31b-it", onModelChange, onExportChat }: HeaderProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isModelDialogOpen, setIsModelDialogOpen] = useState(false);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      setIsModelDialogOpen((prev) => !prev);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <>
@@ -28,7 +43,7 @@ export function Header({  selectedModel = "gemini/gemma-4-31b-it", onExportChat 
           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsMobileSidebarOpen(true)}>
             <Menu className="h-5 w-5" />
           </Button>
-          <HeaderModelBadge selectedModel={selectedModel} />
+          <HeaderModelBadge selectedModel={selectedModel} onClick={() => setIsModelDialogOpen(true)} />
         </div>
 
         <div className="flex items-center gap-2 md:gap-4">
@@ -41,10 +56,8 @@ export function Header({  selectedModel = "gemini/gemma-4-31b-it", onExportChat 
         </div>
       </header>
 
-      <MobileSidebar 
-        isOpen={isMobileSidebarOpen} 
-        onOpenChange={setIsMobileSidebarOpen} 
-      />
+      <MobileSidebar isOpen={isMobileSidebarOpen} onOpenChange={setIsMobileSidebarOpen} />
+      <ModelSelectorDialog open={isModelDialogOpen} onOpenChange={setIsModelDialogOpen} onSelect={onModelChange} />
     </>
   );
 }

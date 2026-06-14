@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message as MessageType } from "@/types";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { MessageList } from "./MessageList";
@@ -31,17 +30,6 @@ export function ChatArea({
   onModelChange,
   onBookmark,
 }: ChatAreaProps) {
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
-  const [shouldAutoScroll, setShouldAutoScroll] = useState(true);
-
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const target = e.currentTarget;
-    const isAtBottom =
-      target.scrollHeight - target.scrollTop - target.clientHeight < 100;
-    setShouldAutoScroll(isAtBottom);
-  };
-
   const handleSearch = async (
     query: string,
     isResearchMode: boolean = false,
@@ -50,26 +38,14 @@ export function ChatArea({
     focusMode: string = "web",
     images?: string[],
   ) => {
-    setShouldAutoScroll(true);
     await ask(query, isResearchMode, selectedModel || model, tone, focusMode, images);
   };
 
-  useEffect(() => {
-    // Auto-scroll to bottom when messages change, but only if user hasn't scrolled up
-    if (shouldAutoScroll) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isStreaming, shouldAutoScroll]);
-
   return (
     <div className="flex flex-col h-full relative w-full">
-      <ScrollArea
-        className="flex-1"
-        ref={scrollAreaRef}
-        onScroll={handleScroll}
-      >
-        <div className="p-4 md:p-8 min-h-full">
-          <div className="max-w-3xl mx-auto space-y-8 pb-4">
+      <div className="flex-1 overflow-hidden">
+        <div className="p-4 md:p-8 h-full">
+          <div className="max-w-3xl mx-auto h-full">
             {messages.length === 0 ? (
               <ChatEmptyState
                 onSearch={handleSearch}
@@ -84,10 +60,9 @@ export function ChatArea({
                 onSuggestionClick={(suggestion) => handleSearch(suggestion)}
               />
             )}
-            <div ref={bottomRef} />
           </div>
         </div>
-      </ScrollArea>
+      </div>
 
       <StickyInput
         show={messages.length > 0}
