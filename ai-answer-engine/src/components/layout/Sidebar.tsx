@@ -6,9 +6,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Plus, User, Search, Code, ShieldCheck } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, User, Search, ShieldCheck } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { PortfolioModal } from "@/components/layout/PortfolioModal";
 import { SidebarNavItem } from "./SidebarNavItem";
 import { SidebarHistoryItem } from "./SidebarHistoryItem";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -135,18 +134,6 @@ export function Sidebar({ isOpen, toggleSidebar, isMobile = false, history = [],
 
       {/* Footer / User */}
       <div className="p-4 border-t border-border/50 space-y-2">
-        {(isOpen || isMobile) ? (
-           <PortfolioModal />
-        ) : (
-           <PortfolioModal 
-             trigger={
-                <Button variant="ghost" size="icon" className="w-full h-8">
-                    <Code className="h-4 w-4" />
-                </Button>
-             }
-           />
-        )}
-
         <div className="pt-2 mt-auto">
             <Link href="/admin" className={cn("block w-full mb-1", !isOpen && "flex justify-center")}>
               <Button variant="ghost" className={cn("w-full justify-start px-2", !isOpen && "justify-center h-10 w-10 p-0")}>

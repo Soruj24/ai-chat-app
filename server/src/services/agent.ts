@@ -20,7 +20,7 @@ import { getVisionTool } from "../tools/vision";
 export const createChatAgent = async (
   sessionId: string,
   isResearchMode: boolean = false,
-  modelName: string = "llama3.2",
+  modelName: string = "gemini/gemma-4-31b-it",
   tone: string = "Neutral",
   focusMode: string = "web",
   images?: string[],
@@ -267,7 +267,7 @@ RULES:
 
 export const createDeepAgent = async (
   sessionId: string,
-  modelName: string = "llama3.2",
+  modelName: string = "gemini/gemma-4-31b-it",
   tone: string = "Neutral",
   focusMode: string = "deep",
 ) => {
@@ -399,7 +399,7 @@ RULES:
 export const generateFollowUpQuestions = async (
   chatHistory: string,
   lastAnswer: string,
-  modelName: string = "llama3.2",
+  modelName: string = "gemini/gemma-4-31b-it",
 ) => {
   let llm;
 

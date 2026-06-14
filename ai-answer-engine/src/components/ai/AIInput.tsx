@@ -66,7 +66,7 @@ export function AIInput({
   placeholder = "Type @ for connectors and sources",
   centered = false,
   isGenerating = false,
-  selectedModel = "llama3.2",
+  selectedModel = "gemini/gemma-4-31b-it",
   onModelChange,
 }: AIInputProps) {
   const [query, setQuery] = useState("");

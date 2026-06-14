@@ -1,14 +1,14 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ChevronDown, Mic, Sparkles, ArrowRight } from "lucide-react";
+import { Mic, Sparkles, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ModelSelector } from "./ModelSelector";
 
 interface Props {
   selectedModel: string;
@@ -29,72 +29,9 @@ export function AIInputToolbarRight({
   isGenerating,
   onSubmit,
 }: Props) {
-  const handleModelChange = onModelChange || (() => {});
-
   return (
     <div className="flex items-center gap-1">
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-8 gap-1.5 px-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-full transition-colors hidden md:flex"
-          >
-            <span className="text-xs font-medium max-w-[80px] truncate">
-              {selectedModel === "llama3.2"
-                ? "Llama 3.2"
-                : selectedModel.split("/").pop()?.split("-")[0] ||
-                  selectedModel}
-            </span>
-            <ChevronDown className="h-3 w-3 opacity-50" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[200px]">
-          <DropdownMenuLabel>Select Model</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuRadioGroup
-            value={selectedModel}
-            onValueChange={handleModelChange}
-          >
-            <DropdownMenuRadioItem value="llama3.2">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
-                Llama 3.2
-              </span>
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="deepseek-r1:1.5b">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-purple-500" />
-                DeepSeek R1 (1.5B)
-              </span>
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="groq/llama-3.1-8b-instant">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500" />
-                Groq Llama 3.1 8B
-              </span>
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="groq/llama-3.3-70b-versatile">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-orange-500" />
-                Groq Llama 3.3 70B
-              </span>
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="gemini/gemini-1.5-flash">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                Gemini 1.5 Flash
-              </span>
-            </DropdownMenuRadioItem>
-            <DropdownMenuRadioItem value="gemini/gemini-1.5-pro">
-              <span className="flex items-center gap-2">
-                <span className="h-2 w-2 rounded-full bg-green-500" />
-                Gemini 1.5 Pro
-              </span>
-            </DropdownMenuRadioItem>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <ModelSelector selectedModel={selectedModel} onModelChange={onModelChange} />
 
       <div className="h-4 w-px bg-border/50 mx-1 hidden md:block" />
 

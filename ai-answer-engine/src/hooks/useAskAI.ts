@@ -13,7 +13,7 @@ export function useAskAI(onSourcesUpdate?: (sources: Source[]) => void) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessionId, setSessionId] = useState("");
   const [history, setHistory] = useState<ChatSession[]>([]);
-  const [selectedModel, setSelectedModel] = useState("groq/llama-3.3-70b-versatile");
+  const [selectedModel, setSelectedModel] = useState("gemini/gemma-4-31b-it");
   const { token, isLoading: authLoading } = useAuth();
 
   const rankAndDedupSources = useCallback((sources: Source[]): Source[] => {

@@ -4,7 +4,7 @@ const settingsSchema = new mongoose.Schema({
   siteName: { type: String, default: "AI Answer Engine" },
   supportEmail: { type: String, default: "support@example.com" },
 
-  defaultModel: { type: String, default: "llama-3.2-11b-vision-preview" },
+  defaultModel: { type: String, default: "gemini/gemma-4-31b-it" },
   groqApiKey: { type: String, default: "" },
   openaiApiKey: { type: String, default: "" },
   anthropicApiKey: { type: String, default: "" },

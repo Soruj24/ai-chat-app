@@ -18,7 +18,7 @@ interface HeaderProps {
     onExportChat?: (format: 'json' | 'md') => void;
 }
 
-export function Header({  selectedModel = "llama3.2", onExportChat }: HeaderProps) {
+export function Header({  selectedModel = "gemini/gemma-4-31b-it", onExportChat }: HeaderProps) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
