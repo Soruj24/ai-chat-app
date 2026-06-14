@@ -31,7 +31,7 @@ const getWikipediaTool = () => {
                     title: summaryData.title,
                     summary: summaryData.extract,
                     url: summaryData.content_urls.desktop.page,
-                    thumbnail: (_c = summaryData.thumbnail) === null || _c === void 0 ? void 0 : _c.source
+                    thumbnail: (_c = summaryData.thumbnail) === null || _c === void 0 ? void 0 : _c.source,
                 });
             }
             catch (error) {

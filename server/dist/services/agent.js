@@ -5,6 +5,7 @@ const ollama_1 = require("@langchain/ollama");
 const groq_1 = require("@langchain/groq");
 const google_genai_1 = require("@langchain/google-genai");
 const langchain_1 = require("langchain");
+const messages_1 = require("@langchain/core/messages");
 const search_1 = require("../tools/search");
 const scraper_1 = require("../tools/scraper");
 const serper_1 = require("../tools/serper");
@@ -19,7 +20,31 @@ const reddit_1 = require("../tools/reddit");
 const wikipedia_1 = require("../tools/wikipedia");
 const image_1 = require("../tools/image");
 const vision_1 = require("../tools/vision");
-const createChatAgent = async (sessionId, isResearchMode = false, modelName = "llama3.2", tone = "Neutral", focusMode = "web", images) => {
+function filterThinkingContent(messages) {
+    return messages.map((msg) => {
+        if (msg instanceof messages_1.AIMessage && Array.isArray(msg.content)) {
+            const filteredContent = msg.content.filter((part) => part.type !== "thinking");
+            if (filteredContent.length === 0) {
+                return new messages_1.AIMessage({
+                    content: "",
+                    additional_kwargs: msg.additional_kwargs,
+                });
+            }
+            if (filteredContent.length === 1 && filteredContent[0].type === "text") {
+                return new messages_1.AIMessage({
+                    content: filteredContent[0].text,
+                    additional_kwargs: msg.additional_kwargs,
+                });
+            }
+            return new messages_1.AIMessage({
+                content: filteredContent,
+                additional_kwargs: msg.additional_kwargs,
+            });
+        }
+        return msg;
+    });
+}
+const createChatAgent = async (sessionId, isResearchMode = false, modelName = "gemma4", tone = "Neutral", focusMode = "web", images) => {
     console.log(`Initializing Chat Agent with model: ${modelName}, tone: ${tone}, focusMode: ${focusMode}`);
     let llm;
     if (modelName.startsWith("groq/")) {
@@ -52,7 +77,12 @@ const createChatAgent = async (sessionId, isResearchMode = false, modelName = "l
     }
     const mcpTools = await (0, mcp_1.getMCPTools)();
     const visionTool = images && images.length > 0 ? [(0, vision_1.getVisionTool)()] : [];
-    const commonTools = [(0, calculator_1.getCalculatorTool)(), (0, weather_1.getWeatherTool)(), ...mcpTools, ...visionTool];
+    const commonTools = [
+        (0, calculator_1.getCalculatorTool)(),
+        (0, weather_1.getWeatherTool)(),
+        ...mcpTools,
+        ...visionTool,
+    ];
     let tools = [];
     if (focusMode === "academic") {
         tools = [
@@ -248,7 +278,7 @@ RULES:
     return { agent };
 };
 exports.createChatAgent = createChatAgent;
-const createDeepAgent = async (sessionId, modelName = "llama3.2", tone = "Neutral", focusMode = "deep") => {
+const createDeepAgent = async (sessionId, modelName = "gemini/gemma-4-31b-it", tone = "Neutral", focusMode = "deep") => {
     let llm;
     if (modelName.startsWith("groq/")) {
         if (!process.env.GROQ_API_KEY) {
@@ -332,9 +362,10 @@ RULES:
         const ToolNode = pre.ToolNode;
         const toolNode = new ToolNode(tools);
         const agentNode = async (state) => {
+            const filteredMessages = filterThinkingContent(state.messages);
             return await llm.invoke([
                 { role: "system", content: systemPrompt },
-                ...state.messages,
+                ...filteredMessages,
             ]);
         };
         const shouldCallTools = (state) => {
@@ -368,7 +399,7 @@ RULES:
     }
 };
 exports.createDeepAgent = createDeepAgent;
-const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "llama3.2") => {
+const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "gemini/gemma-4-31b-it") => {
     let llm;
     if (modelName.startsWith("groq/")) {
         const groqModel = modelName.replace("groq/", "");
@@ -393,7 +424,7 @@ const generateFollowUpQuestions = async (chatHistory, lastAnswer, modelName = "l
         });
     }
     const prompt = `Based on the following conversation and the last answer, suggest 3 short, highly relevant, and interesting follow-up questions the user might want to ask next.
-    
+
     The questions should:
     1. Dive deeper into the topic just discussed.
     2. Explore related aspects or implications (e.g., future trends, comparisons, specific details).

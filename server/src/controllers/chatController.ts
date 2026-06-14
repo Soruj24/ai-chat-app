@@ -488,11 +488,19 @@ export const askQuestion = async (req: Request, res: Response) => {
           `data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images: responseImages, tool: event.name })}\n\n`,
         );
       } else if (eventType === "on_chat_model_stream") {
-        const content = event.data.chunk?.content;
-        // console.log(`[Stream]`, content);
-        if (content) {
-          finalAnswer += content;
-          res.write(`data: ${JSON.stringify({ type: "answer", content })}\n\n`);
+        const chunkContent = event.data.chunk?.content;
+        // Handle thinking content - skip thinking parts, only send text parts
+        if (Array.isArray(chunkContent)) {
+          for (const part of chunkContent) {
+            if (part.type === "text" && part.text) {
+              finalAnswer += part.text;
+              res.write(`data: ${JSON.stringify({ type: "answer", content: part.text })}\n\n`);
+            }
+            // Skip thinking parts silently
+          }
+        } else if (chunkContent && typeof chunkContent === "string") {
+          finalAnswer += chunkContent;
+          res.write(`data: ${JSON.stringify({ type: "answer", content: chunkContent })}\n\n`);
         }
       } else {
         // Log other events to debug

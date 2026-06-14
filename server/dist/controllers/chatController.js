@@ -432,10 +432,18 @@ const askQuestion = async (req, res) => {
                 res.write(`data: ${JSON.stringify({ type: "step", content: `Completed: ${event.name}`, sources: ranked, images: responseImages, tool: event.name })}\n\n`);
             }
             else if (eventType === "on_chat_model_stream") {
-                const content = (_c = event.data.chunk) === null || _c === void 0 ? void 0 : _c.content;
-                if (content) {
-                    finalAnswer += content;
-                    res.write(`data: ${JSON.stringify({ type: "answer", content })}\n\n`);
+                const chunkContent = (_c = event.data.chunk) === null || _c === void 0 ? void 0 : _c.content;
+                if (Array.isArray(chunkContent)) {
+                    for (const part of chunkContent) {
+                        if (part.type === "text" && part.text) {
+                            finalAnswer += part.text;
+                            res.write(`data: ${JSON.stringify({ type: "answer", content: part.text })}\n\n`);
+                        }
+                    }
+                }
+                else if (chunkContent && typeof chunkContent === "string") {
+                    finalAnswer += chunkContent;
+                    res.write(`data: ${JSON.stringify({ type: "answer", content: chunkContent })}\n\n`);
                 }
             }
             else {

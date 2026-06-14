@@ -2,6 +2,7 @@ import { ChatOllama } from "@langchain/ollama";
 import { ChatGroq } from "@langchain/groq";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { createAgent } from "langchain";
+import { BaseMessage, AIMessage } from "@langchain/core/messages";
 import { getSearchTool } from "../tools/search";
 import { WebScraperTool } from "../tools/scraper";
 import { getSerperTool } from "../tools/serper";
@@ -17,10 +18,41 @@ import { getWikipediaTool } from "../tools/wikipedia";
 import { getImageGenerationTool } from "../tools/image";
 import { getVisionTool } from "../tools/vision";
 
+/**
+ * Filters out "thinking" content parts from messages.
+ * Gemma 4 models return thinking content that LangChain Google GenAI SDK cannot handle.
+ */
+function filterThinkingContent(messages: BaseMessage[]): BaseMessage[] {
+  return messages.map((msg) => {
+    if (msg instanceof AIMessage && Array.isArray(msg.content)) {
+      const filteredContent = msg.content.filter(
+        (part: any) => part.type !== "thinking",
+      );
+      if (filteredContent.length === 0) {
+        return new AIMessage({
+          content: "",
+          additional_kwargs: msg.additional_kwargs,
+        }) as BaseMessage;
+      }
+      if (filteredContent.length === 1 && filteredContent[0].type === "text") {
+        return new AIMessage({
+          content: filteredContent[0].text,
+          additional_kwargs: msg.additional_kwargs,
+        }) as BaseMessage;
+      }
+      return new AIMessage({
+        content: filteredContent,
+        additional_kwargs: msg.additional_kwargs,
+      }) as BaseMessage;
+    }
+    return msg;
+  });
+}
+
 export const createChatAgent = async (
   sessionId: string,
   isResearchMode: boolean = false,
-  modelName: string = "gemini/gemma-4-31b-it",
+  modelName: string = "gemma4",
   tone: string = "Neutral",
   focusMode: string = "web",
   images?: string[],
@@ -67,7 +99,12 @@ export const createChatAgent = async (
   const visionTool = images && images.length > 0 ? [getVisionTool()] : [];
 
   // Tools available in all modes
-  const commonTools = [getCalculatorTool(), getWeatherTool(), ...mcpTools, ...visionTool];
+  const commonTools = [
+    getCalculatorTool(),
+    getWeatherTool(),
+    ...mcpTools,
+    ...visionTool,
+  ];
 
   let tools: Record<string, any>[] = [];
 
@@ -360,9 +397,11 @@ RULES:
     const ToolNode: any = pre.ToolNode;
     const toolNode = new ToolNode(tools as any);
     const agentNode = async (state: any) => {
+      // Filter out thinking content from messages before sending to model
+      const filteredMessages = filterThinkingContent(state.messages);
       return await llm.invoke([
         { role: "system", content: systemPrompt } as any,
-        ...state.messages,
+        ...filteredMessages,
       ]);
     };
     const shouldCallTools = (state: any) => {
@@ -426,7 +465,7 @@ export const generateFollowUpQuestions = async (
   }
 
   const prompt = `Based on the following conversation and the last answer, suggest 3 short, highly relevant, and interesting follow-up questions the user might want to ask next.
-    
+
     The questions should:
     1. Dive deeper into the topic just discussed.
     2. Explore related aspects or implications (e.g., future trends, comparisons, specific details).
@@ -446,7 +485,8 @@ export const generateFollowUpQuestions = async (
     // For Groq/Gemini, the invoke might return something different
     const response = await llm.invoke(prompt);
     const content = (response as any).content;
-    const text = typeof content === "string" ? content : JSON.stringify(content);
+    const text =
+      typeof content === "string" ? content : JSON.stringify(content);
     return text
       .split("\n")
       .filter((line: string) => line.trim().length > 0)
