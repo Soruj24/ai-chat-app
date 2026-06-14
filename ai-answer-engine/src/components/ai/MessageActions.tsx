@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface MessageActionsProps {
   copied: boolean;
-  isStreaming: boolean;
+  isStreaming?: boolean;
   onCopy: () => void;
   onRegenerate?: () => void;
   onShare?: () => void;

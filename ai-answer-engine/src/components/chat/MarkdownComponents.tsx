@@ -24,10 +24,11 @@ function renderChartBlock(children: React.ReactNode) {
 }
 
 function renderCitation(children: React.ReactNode, sources?: Source[]) {
-  if (children && children[0] && typeof children[0] === "string" && children[0].startsWith("^")) {
-    const index = parseInt(children[0].substring(1));
+  const text = Array.isArray(children) ? children[0] : children;
+  if (typeof text === "string" && text.startsWith("^")) {
+    const index = parseInt(text.substring(1));
     const source = sources?.[index - 1];
-    if (source) return <CitationBadge index={index} url={source.url} title={source.title} />;
+    if (source) return <CitationBadge index={index} source={source} />;
   }
   return null;
 }
@@ -59,7 +60,7 @@ export const markdownComponents = (sources?: Source[]) => ({
     if (typeof children === "string" && !isNaN(parseInt(children))) {
       const index = parseInt(children);
       const source = sources?.[index - 1];
-      if (source) return <CitationBadge index={index} url={source.url} title={source.title} />;
+      if (source) return <CitationBadge index={index} source={source} />;
     }
     return <span className="text-xs text-muted-foreground">{children}</span>;
   },
